@@ -1,0 +1,98 @@
+:root {
+    --primary: #008366;
+    --dark: #071434;
+    --light: #ffffff;
+    --text: #000000;
+    --border-radius: 8px;
+    --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-family);
+    background-color: var(--light);
+    color: var(--text);
+  }
+  
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  
+  h1, h2, h3 {
+    color: var(--dark);
+  }
+  
+  button {
+    background-color: var(--primary);
+    color: white;
+    padding: 10px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  button:hover {
+    background-color: #006e53;
+  }
+  
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="password"] {
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ccc;
+    border-radius: var(--border-radius);
+    margin-bottom: 1rem;
+  }
+  
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+  }
+  
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  li {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .card {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+  }
+  
+  .flex {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  
+  input[type="checkbox"] {
+    margin-right: 8px;
+  }
+  @media (max-width: 768px) {
+    .header-content h1 {
+      font-size: 1.2rem;
+    }
+  
+    button {
+      width: 100%;
+    }
+  }
+  
