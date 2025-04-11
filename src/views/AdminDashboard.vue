@@ -26,10 +26,11 @@
         <h3>Top Vendedores</h3>
         <ul>
           <li v-for="(v, i) in topVendedores" :key="i">
-            <strong>#{{ i + 1 }}</strong> {{ v.nombre || v.uid }} —
-            {{ v.total }} cotizaciones —
-            ${{ v.ventas.toLocaleString() }}
-          </li>
+  <strong>#{{ i + 1 }}</strong> {{ v.nombre || v.uid }} —
+  {{ v.total }} cotizaciones —
+  ${{ (v.ventas ?? 0).toLocaleString() }}
+</li>
+
         </ul>
       </div>
 
