@@ -4,10 +4,17 @@ import router from './router'
 import { createPinia } from 'pinia'
 import './assets/style.css'
 
-const app = createApp(App)
+import { auth } from './firebase/firebaseConfig'
+import { onAuthStateChanged } from 'firebase/auth'
 
-const pinia = createPinia()
-app.use(pinia)
-app.use(router)
+let app
 
-app.mount('#app')
+onAuthStateChanged(auth, () => {
+  if (!app) {
+    app = createApp(App)
+    const pinia = createPinia()
+    app.use(pinia)
+    app.use(router)
+    app.mount('#app')
+  }
+})

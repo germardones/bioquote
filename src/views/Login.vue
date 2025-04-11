@@ -9,20 +9,24 @@
       <label>Contraseña</label>
       <input v-model="password" type="password" placeholder="Contraseña" />
 
-      <button @click="loginConCorreo">Ingresar con correo</button>
+      <button @click="loginConCorreo" :disabled="loading">
+        {{ loading ? 'Cargando...' : 'Ingresar con correo' }}
+      </button>
 
       <hr style="margin: 1rem 0;" />
 
-      <button @click="loginConGoogle">Ingresar con Google</button>
+      <button @click="loginConGoogle" :disabled="loading">
+        {{ loading ? 'Cargando...' : 'Ingresar con Google' }}
+      </button>
 
-      <p v-if="error" style="color: red; margin-top: 1rem;">{{ error }}</p>
+      <p v-if="error" class="error">{{ error }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-
+import { useRouter } from 'vue-router'
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -31,39 +35,70 @@ import {
   setPersistence,
   browserLocalPersistence
 } from 'firebase/auth'
-import { useRouter } from 'vue-router'
+import { doc, getDoc } from 'firebase/firestore'
+import { db } from '../firebase/firebaseConfig'
 
+const router = useRouter()
 const auth = getAuth()
 const provider = new GoogleAuthProvider()
-const router = useRouter()
 
 const email = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
-const loginConGoogle = async () => {
+const redirigirPorRol = async (user) => {
+  const docRef = doc(db, 'usuarios', user.uid)
+  const docSnap = await getDoc(docRef)
+  console.log('UID actual:', user.uid)
+
+
+  if (!docSnap.exists()) {
+    await auth.signOut() // 👈 cerrar sesión automáticamente
+    throw new Error('Usuario no registrado. Contacte a soporte.')
+  }
+
+  const datos = docSnap.data()
+  const rol = datos.rol
+
+  if (rol === 'admin') {
+    router.push('/admin')
+  } else if (rol === 'vendedor') {
+    router.push('/dashboard')
+  } else {
+    await auth.signOut() // 👈 cerrar sesión si el rol no es válido
+    throw new Error('Rol de usuario no válido.')
+  }
+}
+
+
+const loginConCorreo = async () => {
+  if (!email.value || !password.value) {
+    error.value = 'Debes ingresar correo y contraseña.'
+    return
+  }
+
   try {
     loading.value = true
     await setPersistence(auth, browserLocalPersistence)
-    await signInWithPopup(auth, provider)
-    router.push('/dashboard')
+    const credenciales = await signInWithEmailAndPassword(auth, email.value, password.value)
+    await redirigirPorRol(credenciales.user)
   } catch (err) {
-    error.value = 'No se pudo iniciar sesión con Google.'
+    error.value = 'Correo o contraseña inválidos.'
     console.error(err)
   } finally {
     loading.value = false
   }
 }
 
-const loginConCorreo = async () => {
+const loginConGoogle = async () => {
   try {
     loading.value = true
     await setPersistence(auth, browserLocalPersistence)
-    await signInWithEmailAndPassword(auth, email.value, password.value)
-    router.push('/dashboard')
+    const resultado = await signInWithPopup(auth, provider)
+    await redirigirPorRol(resultado.user)
   } catch (err) {
-    error.value = 'Correo o contraseña inválidos.'
+    error.value = 'No se pudo iniciar sesión con Google.'
     console.error(err)
   } finally {
     loading.value = false
@@ -88,5 +123,28 @@ const loginConCorreo = async () => {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   width: 100%;
   max-width: 400px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 1rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  background-color: var(--primary);
+  color: white;
+  cursor: pointer;
+}
+
+button[disabled] {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.error {
+  color: red;
+  margin-top: 1rem;
+  font-weight: bold;
 }
 </style>

@@ -15,28 +15,47 @@
       </div>
     </div>
 
-    <button :disabled="!selected" @click="$emit('next')">Continuar</button>
+    <button
+      :disabled="!selected"
+      :class="['btn-continuar', { activo: selected }]"
+      @click="$emit('next')"
+    >
+      Continuar
+    </button>
+    <button @click="volverAtras" class="btn-volver">← Volver atrás</button>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useQuotationStore } from '../store/quotation'
+import { ref } from "vue";
+import { useRouter } from "vue-router"; // ✅ IMPORTANTE
+import { useQuotationStore } from "../store/quotation";
 
-const store = useQuotationStore()
-const selected = ref(store.servicio)
+const router = useRouter(); // ✅ NECESARIO
+const store = useQuotationStore();
+const selected = ref(store.servicio);
 
 const servicios = [
-  { id: 1, nombre: 'Landing Page', cobroBase: 250000, cobroAdicional: 25000 },
-  { id: 2, nombre: 'Sitio institucional', cobroBase: 450000, cobroAdicional: 50000 },
-  { id: 3, nombre: 'Ecommerce', cobroBase: 600000, cobroAdicional: 25000 }
-]
+  { id: 1, nombre: "Landing Page", cobroBase: 250000, cobroAdicional: 25000 },
+  {
+    id: 2,
+    nombre: "Sitio institucional",
+    cobroBase: 450000,
+    cobroAdicional: 50000,
+  },
+  { id: 3, nombre: "Ecommerce", cobroBase: 600000, cobroAdicional: 25000 },
+];
 
 const selectService = (s) => {
-  selected.value = s
-  store.servicio = s
-}
+  selected.value = s;
+  store.servicio = s;
+};
+
+const volverAtras = () => {
+  router.back(); // ✅ Ahora funcionará correctamente
+};
 </script>
+
 
 <style scoped>
 .servicio-opcion {
@@ -55,4 +74,41 @@ const selectService = (s) => {
   border: 2px solid var(--primary);
   background-color: #e8f8f3;
 }
+.btn-volver {
+  background-color: var(--primary);
+  color: white;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.btn-volver:hover {
+  background-color: #006e53;
+}
+.btn-continuar {
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: bold;
+  border: none;
+  cursor: not-allowed;
+  background-color: #ccc;
+  color: #666;
+  margin-top: 1rem;
+  margin-right: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.btn-continuar.activo {
+  background-color: var(--primary);
+  color: white;
+  cursor: pointer;
+}
+
+.btn-continuar.activo:hover {
+  background-color: #006e53;
+}
+
 </style>

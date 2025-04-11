@@ -1,6 +1,9 @@
 <template>
   <div class="container">
-    <h2>Resumen de Cotización</h2>
+    <div class="header">
+      <h2>Resumen de Cotización</h2>
+      <span v-if="store.codigo" class="codigo-cotizacion">Código: {{ store.codigo }}</span>
+    </div>
 
     <div v-if="store.servicio && store.cliente && store.total !== null" class="card resumen">
       <h3>Cliente</h3>
@@ -24,7 +27,10 @@
       <hr />
 
       <h3>Horas Extra</h3>
-      <p>{{ store.horasExtra }} hora(s) - ${{ store.horasExtra * (store.servicio?.cobroAdicional || 0) }}</p>
+      <p>
+        {{ store.horasExtra }} hora(s) - $
+        {{ store.horasExtra * (store.servicio?.cobroAdicional || 0) }}
+      </p>
 
       <hr />
 
@@ -36,74 +42,23 @@
 
     <!-- Botones -->
     <div class="btn-group">
-      <button class="guardar-btn" @click="guardarCotizacion">
+      <button class="guardar-btn" @click="guardarCotizacion" :disabled="cargando">
         💾 Guardar Cotización
       </button>
-      <button
-        class="pdf-btn"
-        @click="exportarPDF"
-        :disabled="!pdfListo"
-        :style="{ backgroundColor: pdfListo ? '#071434' : '#aaa', cursor: pdfListo ? 'pointer' : 'not-allowed' }"
-      >
-        🧾 Exportar a PDF
+
+      <button @click="router.push('/imprimir')" :disabled="cargando">
+        🖨️ Imprimir Cotización
       </button>
 
-
-      <button class="volver-btn" @click="volverADashboard">
+      <button class="volver-btn" @click="volverADashboard" :disabled="cargando">
         🔙 Volver al Dashboard
       </button>
     </div>
 
-    <!-- Contenido oculto para PDF (posición fuera de pantalla) -->
-    <!-- Contenido oculto para PDF (posición fuera de pantalla) -->
-    <div ref="pdfRef" style="opacity: 0; pointer-events: none; position: fixed; top: 0; left: 0; z-index: -1;">
-
-  <div style="font-family: Arial, sans-serif; width: 600px; padding: 20px;">
-    <!-- Usa la imagen desde /public/logo.png -->
-    <!-- <img src="/logo.png" alt="Logo" style="height: 60px; margin-bottom: 20px;" /> -->
-
-    <h2 style="margin-bottom: 10px;">Cotización {{ store.codigo }}</h2>
-    <p><strong>Fecha:</strong> {{ new Date().toLocaleDateString() }}</p>
-    <hr />
-
-    <h3>Datos de la empresa</h3>
-    <p>{{ store.empresa?.nombre }}</p>
-    <p>RUT: {{ store.empresa?.rut }}</p>
-    <p>Dirección: {{ store.empresa?.direccion }}</p>
-    <p>Contacto: {{ store.empresa?.email }} | {{ store.empresa?.telefono }}</p>
-
-    <hr />
-
-    <h3>Datos del cliente</h3>
-    <p>{{ store.cliente?.nombre }} — {{ store.cliente?.razonSocial }}</p>
-    <p>RUT: {{ store.cliente?.rut }}</p>
-    <p>Contacto: {{ store.cliente?.contacto }}</p>
-
-    <hr />
-
-    <h3>Vendedor</h3>
-    <p>{{ store.vendedorNombre }} — {{ store.vendedorEmail }}</p>
-
-    <hr />
-
-    <h3>Servicios Cotizados</h3>
-    <p><strong>Servicio base:</strong> {{ store.servicio?.nombre }} — ${{ store.servicio?.cobroBase }}</p>
-
-    <ul v-if="store.adicionales.length > 0">
-      <li v-for="a in store.adicionales" :key="a.id">
-        {{ a.nombre }} — ${{ a.precio }}
-      </li>
-    </ul>
-    <p v-else>(Sin adicionales)</p>
-
-    <p><strong>Horas extra:</strong> {{ store.horasExtra }} — ${{ store.horasExtra * (store.servicio?.cobroAdicional || 0) }}</p>
-
-    <hr />
-
-    <h3>Total: ${{ store.total }}</h3>
-  </div>
-</div>
-
+    <!-- Overlay de carga -->
+    <div v-if="cargando" class="overlay-carga">
+      <div class="spinner"></div>
+    </div>
   </div>
 </template>
 
@@ -119,13 +74,11 @@ import {
   getDoc,
   setDoc
 } from 'firebase/firestore'
-
-import { ref, nextTick } from 'vue'
-import html2pdf from 'html2pdf.js'
+import { ref } from 'vue'
 
 const store = useQuotationStore()
 const router = useRouter()
-const pdfRef = ref(null)
+const cargando = ref(false)
 
 const empresa = {
   nombre: 'BioBio Code',
@@ -134,11 +87,13 @@ const empresa = {
   telefono: '+56 9 3104 7688',
   email: 'contacto@biobiocode.cl'
 }
-const pdfListo = ref(false)
+
 const guardarCotizacion = async () => {
   try {
     const user = auth.currentUser
     if (!user) return alert('Usuario no autenticado.')
+
+    cargando.value = true
 
     const contadorRef = doc(db, 'contador', 'cotizaciones')
     const contadorSnap = await getDoc(contadorRef)
@@ -164,7 +119,6 @@ const guardarCotizacion = async () => {
       createdAt: serverTimestamp(),
       empresa: empresa
     }
-    
 
     await addDoc(collection(db, 'cotizaciones'), cotizacion)
     await setDoc(contadorRef, { ultimoCorrelativo: nuevoCorrelativo })
@@ -173,52 +127,13 @@ const guardarCotizacion = async () => {
     store.vendedorNombre = user.displayName
     store.vendedorEmail = user.email
     store.empresa = empresa
-    console.log('Código asignado al store:', store.codigo)
-    alert('Cotización guardada exitosamente.')
-    pdfListo.value = true // 🔓 Activar botón PDF
 
   } catch (err) {
     console.error('Error al guardar cotización', err)
-    alert('Error al guardar cotización.')
+  } finally {
+    cargando.value = false
   }
 }
-
-
-const exportarPDF = async () => {
-  console.log('Exportar PDF llamado')
-
-  await nextTick()
-  await new Promise((resolve) => setTimeout(resolve, 100)) // 🕐 asegura el render
-
-  const element = pdfRef.value
-  console.log('Contenido capturado:', element?.innerText)
-
-  if (!element) {
-    alert('No se encontró el contenido para generar el PDF')
-    return
-  }
-
-  const opt = {
-    margin: 0.5,
-    filename: `${store.codigo || 'cotizacion'}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      logging: true, // 👈 para ver en consola posibles fallos
-    },
-    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-  }
-
-  html2pdf().set(opt).from(element).save().then(() => {
-    console.log('✅ PDF generado correctamente.')
-  }).catch(err => {
-    console.error('Error al generar PDF:', err)
-  })
-}
-
-
-
 
 const volverADashboard = () => {
   if (confirm('¿Estás seguro de salir sin guardar la cotización?')) {
@@ -228,7 +143,24 @@ const volverADashboard = () => {
 }
 </script>
 
-<style>
+<style scoped>
+.container {
+  position: relative;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.codigo-cotizacion {
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--primary);
+}
+
 .card.resumen {
   background-color: #f9f9f9;
   border: 1px solid #ddd;
@@ -284,15 +216,6 @@ button {
   background-color: #006e53;
 }
 
-.pdf-btn {
-  background-color: #071434;
-  color: white;
-}
-
-.pdf-btn:hover {
-  background-color: #0a1d4c;
-}
-
 .volver-btn {
   background-color: #ccc;
   color: #000;
@@ -300,5 +223,34 @@ button {
 
 .volver-btn:hover {
   background-color: #bbb;
+}
+
+/* Overlay de carga */
+.overlay-carga {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 6px solid #ddd;
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
