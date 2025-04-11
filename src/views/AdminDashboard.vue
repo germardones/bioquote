@@ -19,18 +19,17 @@
 
       <div class="card clickeable muted" @click="router.push('/admin/ventas-servicio')">
         <h3>Ventas Posibles</h3>
-        <p>$ {{ totalVentas.toLocaleString() }}</p>
+        <p>$ {{ formatearPesos(totalVentas) }}</p>
       </div>
 
       <div class="card vendedores wide-2">
         <h3>Top Vendedores</h3>
         <ul>
           <li v-for="(v, i) in topVendedores" :key="i">
-  <strong>#{{ i + 1 }}</strong> {{ v.nombre || v.uid }} —
-  {{ v.total }} cotizaciones —
-  ${{ (v.ventas ?? 0).toLocaleString() }}
-</li>
-
+            <strong>#{{ i + 1 }}</strong> {{ v.nombre || v.uid }} —
+            {{ v.total || 0 }} cotizaciones —
+            ${{ formatearPesos(v.ventas) }}
+          </li>
         </ul>
       </div>
 
@@ -38,7 +37,9 @@
         <h3>Últimas Cotizaciones</h3>
         <ul>
           <li v-for="c in cotizacionesRecientes" :key="c.codigo">
-            {{ c.codigo }} - {{ c.cliente?.nombre }} - ${{ c.total.toLocaleString() }}
+            {{ c.codigo || 'Sin código' }} -
+            {{ c.cliente?.nombre || 'Sin nombre' }} -
+            ${{ formatearPesos(c.total) }}
           </li>
         </ul>
       </div>
@@ -60,6 +61,10 @@ const cotizacionesMes = ref(0)
 const totalVentas = ref(0)
 const topVendedores = ref([])
 const cotizacionesRecientes = ref([])
+
+const formatearPesos = (valor) => {
+  return Number(valor || 0).toLocaleString('es-CL')
+}
 
 onMounted(async () => {
   const cotizacionesSnapshot = await getDocs(collection(db, 'cotizaciones'))
@@ -111,12 +116,11 @@ onMounted(async () => {
 <style scoped>
 .admin-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 columnas iguales */
+  grid-template-columns: repeat(3, 1fr);
   gap: 1.5rem;
   margin-top: 2rem;
   align-items: stretch;
 }
-
 
 .card {
   background: white;
