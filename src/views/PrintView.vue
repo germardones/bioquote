@@ -1,5 +1,5 @@
 <template>
-  <div class="cotizacion-container">
+  <div class="cotizacion-container" v-if="datosCargados">
     <div class="encabezado">
       <div class="empresa">
         <p><strong>BioBio Code</strong></p>
@@ -34,23 +34,24 @@
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td>{{ store.servicio.nombre }}</td>
+        <tr v-for="servicio in store.servicios" :key="servicio.id">
+          <td>{{ servicio.nombre }}</td>
           <td>1</td>
-          <td>${{ store.servicio.cobroBase.toLocaleString() }}</td>
-          <td>${{ store.servicio.cobroBase.toLocaleString() }}</td>
+          <td>${{ servicio.cobroBase.toLocaleString() }}</td>
+          <td>${{ servicio.cobroBase.toLocaleString() }}</td>
         </tr>
         <tr v-for="a in store.adicionales" :key="a.id">
           <td>{{ a.nombre }}</td>
           <td>1</td>
-          <td>${{ a.precio.toLocaleString() }}</td>
-          <td>${{ a.precio.toLocaleString() }}</td>
+          <td v-if="a.precio">${{ a.precio.toLocaleString() }}</td>
+          <td v-if="a.precio">${{ a.precio.toLocaleString() }}</td>
+          <td v-else colspan="2">Se calculará posteriormente</td>
         </tr>
         <tr v-if="store.horasExtra > 0">
           <td>Horas Extra</td>
           <td>{{ store.horasExtra }}</td>
-          <td>${{ store.servicio.cobroAdicional.toLocaleString() }}</td>
-          <td>${{ (store.horasExtra * store.servicio.cobroAdicional).toLocaleString() }}</td>
+          <td>${{ totalHora.toLocaleString() }}</td>
+          <td>${{ (store.horasExtra * totalHora).toLocaleString() }}</td>
         </tr>
       </tbody>
     </table>
@@ -59,38 +60,48 @@
       <p><strong>SUBTOTAL:</strong> ${{ subtotal.toLocaleString() }}</p>
       <p><strong>IVA (19%):</strong> ${{ iva.toLocaleString() }}</p>
       <p><strong>TOTAL:</strong> ${{ store.total.toLocaleString() }}</p>
+      <p><strong>TOTAL + IVA:</strong> ${{ totalConIVA.toLocaleString() }}</p>
     </div>
 
-    
     <div class="mensajes-finales">
       <p><em>Esta cotización tiene una validez de 30 días desde su emisión. Pasado este plazo, los valores podrían ser modificados.</em></p>
       <p><strong>Importante:</strong> Si esta es su primera compra con nosotros, puede acceder a un <strong>10% de descuento</strong>. Consulte con nuestro equipo para confirmar la vigencia de este beneficio.</p>
     </div>
-    <button class="volver-btn" @click="volverADashboard">
-        Volver al Dashboard
-    </button>
 
+    <button class="volver-btn" @click="volverADashboard">Volver al Dashboard</button>
+  </div>
+
+  <div v-else>
+    <p>Cargando datos de cotización...</p>
   </div>
 </template>
 
 <script setup>
 import { useQuotationStore } from '../store/quotation'
 import { useRouter } from 'vue-router'
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 const store = useQuotationStore()
 const router = useRouter()
 
+const datosCargados = ref(false)
+
 const fecha = new Date().toLocaleDateString()
-const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString() // 15 días
+const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString()
+
+const totalHora = computed(() =>
+  store.servicios.reduce((sum, s) => sum + (s.cobroAdicional || 0), 0)
+)
 
 const subtotal = computed(() => {
-  const adicionalTotal = store.adicionales.reduce((acc, a) => acc + a.precio, 0)
-  const horasTotal = store.horasExtra * store.servicio.cobroAdicional
-  return store.servicio.cobroBase + adicionalTotal + horasTotal
+  const base = store.servicios.reduce((sum, s) => sum + (s.cobroBase || 0), 0)
+  const adicionales = store.adicionales.reduce((sum, a) => sum + (a.precio || 0), 0)
+  const extra = store.horasExtra * totalHora.value
+  return base + adicionales + extra
 })
 
 const iva = computed(() => Math.round(subtotal.value * 0.19))
+const totalConIVA = computed(() => subtotal.value + iva.value)
 
 const volverADashboard = () => {
   if (confirm('¿Estás seguro de salir?')) {
@@ -100,75 +111,26 @@ const volverADashboard = () => {
 }
 
 onMounted(() => {
-  window.print()
+  const localData = localStorage.getItem('ultimaCotizacion')
+  if (localData) {
+    try {
+      const cot = JSON.parse(localData)
+      if (cot?.cliente && cot?.servicios) {
+        store.cliente = cot.cliente
+        store.servicios = cot.servicios
+        store.adicionales = cot.adicionales || []
+        store.horasExtra = cot.horasExtra || 0
+        store.codigo = cot.codigo || ''
+        store.empresa = cot.empresa || {}
+        datosCargados.value = true
+
+        setTimeout(() => {
+          window.print()
+        }, 300)
+      }
+    } catch (e) {
+      console.error('Error al cargar cotización desde localStorage:', e)
+    }
+  }
 })
 </script>
-
-<style scoped>
-.cotizacion-container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-family: Arial, sans-serif;
-  background: white;
-  color: #000;
-}
-.encabezado {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 2rem;
-}
-.seccion {
-  background: #cce3f6;
-  padding: 0.5rem;
-  font-weight: bold;
-}
-.tabla-servicios {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 1.5rem;
-}
-.tabla-servicios th,
-.tabla-servicios td {
-  border: 1px solid #ccc;
-  padding: 0.5rem;
-  text-align: left;
-}
-.totales {
-  margin-top: 2rem;
-  text-align: right;
-}
-.no-print {
-  margin-top: 2rem;
-}
-.volver-btn {
-  padding: 12px 18px;
-  background-color: var(--primary); /* antes era #ccc */
-  color: white;
-  border: none;
-  border-radius: var(--border-radius, 8px);
-  cursor: pointer;
-  font-weight: bold;
-  transition: background-color 0.3s ease;
-}
-
-.volver-btn:hover {
-  background-color: #006e53; /* tono más oscuro al pasar el mouse */
-}
-
-@media print {
-  .volver-btn {
-    display: none !important;
-  }
-}
-.mensajes-finales {
-  margin-top: 2rem;
-  font-size: 0.95rem;
-  color: #333;
-  line-height: 1.5;
-}
-.mensajes-finales em {
-  color: #555;
-}
-
-</style>

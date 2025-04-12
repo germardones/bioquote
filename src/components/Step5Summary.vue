@@ -5,42 +5,44 @@
       <span v-if="store.codigo" class="codigo-cotizacion">Código: {{ store.codigo }}</span>
     </div>
 
-    <div v-if="store.servicio && store.cliente && store.total !== null" class="card resumen">
+    <div v-if="store.servicios.length && store.cliente" class="card resumen">
       <h3>Cliente</h3>
       <p>{{ store.cliente.nombre }} | {{ store.cliente.razonSocial }} | {{ store.cliente.rut }}</p>
 
       <hr />
 
-      <h3>Servicio Base</h3>
-      <p>{{ store.servicio.nombre }} - ${{ store.servicio.cobroBase }}</p>
+      <h3>Servicios Cotizados</h3>
+      <div v-for="servicio in store.servicios" :key="servicio.id" class="bloque-servicio">
+        <strong>{{ servicio.nombre }}</strong>
+        <p>Base: ${{ servicio.cobroBase.toLocaleString() }}</p>
 
-      <hr />
+        <div v-if="adicionalesPorServicio(servicio.id).length">
+          <p>Adicionales:</p>
+          <ul>
+            <li v-for="a in adicionalesPorServicio(servicio.id)" :key="a.id">
+              {{ a.nombre }} - {{ a.precio ? `$${a.precio.toLocaleString()}` : 'a definir' }}
+            </li>
+          </ul>
+        </div>
+        <p v-else>(Sin adicionales)</p>
 
-      <h3>Adicionales</h3>
-      <ul v-if="store.adicionales.length > 0">
-        <li v-for="a in store.adicionales" :key="a.id">
-          {{ a.nombre }} - ${{ a.precio }}
-        </li>
-      </ul>
-      <p v-else>(Sin adicionales)</p>
-
-      <hr />
+        <hr />
+      </div>
 
       <h3>Horas Extra</h3>
       <p>
         {{ store.horasExtra }} hora(s) - $
-        {{ store.horasExtra * (store.servicio?.cobroAdicional || 0) }}
+        {{ (store.horasExtra * totalHorasExtras).toLocaleString() }}
       </p>
 
       <hr />
 
       <h3>Total Final</h3>
-      <p class="total">${{ store.total }}</p>
+      <p class="total">${{ store.total.toLocaleString() }}</p>
     </div>
 
     <p v-else>Cargando datos de cotización...</p>
 
-    <!-- Botones -->
     <div class="btn-group">
       <button class="guardar-btn" @click="guardarCotizacion" :disabled="cargando">
         💾 Guardar Cotización
@@ -55,7 +57,6 @@
       </button>
     </div>
 
-    <!-- Overlay de carga -->
     <div v-if="cargando" class="overlay-carga">
       <div class="spinner"></div>
     </div>
@@ -66,14 +67,7 @@
 import { useQuotationStore } from '../store/quotation'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase/firebaseConfig'
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-  setDoc
-} from 'firebase/firestore'
+import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 
 const store = useQuotationStore()
@@ -87,6 +81,14 @@ const empresa = {
   telefono: '+56 9 3104 7688',
   email: 'contacto@biobiocode.cl'
 }
+
+const adicionalesPorServicio = (id) => {
+  return store.adicionales.filter(a => a.servicioId === id)
+}
+
+const totalHorasExtras = store.servicios.reduce((acc, s) => {
+  return acc + (s.cobroAdicional || 0)
+}, 0)
 
 const guardarCotizacion = async () => {
   try {
@@ -112,22 +114,23 @@ const guardarCotizacion = async () => {
       vendedorNombre: user.displayName || 'Sin nombre',
       vendedorEmail: user.email,
       cliente: store.cliente,
-      servicioBase: store.servicio,
+      servicios: store.servicios,
       adicionales: store.adicionales,
       horasExtra: store.horasExtra,
       total: store.total,
       createdAt: serverTimestamp(),
-      empresa: empresa
+      empresa
     }
 
     await addDoc(collection(db, 'cotizaciones'), cotizacion)
     await setDoc(contadorRef, { ultimoCorrelativo: nuevoCorrelativo })
 
     store.codigo = codigoCotizacion
+    store.empresa = empresa
     store.vendedorNombre = user.displayName
     store.vendedorEmail = user.email
-    store.empresa = empresa
 
+    localStorage.setItem('ultimaCotizacion', JSON.stringify(cotizacion))
   } catch (err) {
     console.error('Error al guardar cotización', err)
   } finally {
@@ -147,20 +150,17 @@ const volverADashboard = () => {
 .container {
   position: relative;
 }
-
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
-
 .codigo-cotizacion {
   font-size: 1rem;
   font-weight: bold;
   color: var(--primary);
 }
-
 .card.resumen {
   background-color: #f9f9f9;
   border: 1px solid #ddd;
@@ -168,35 +168,33 @@ const volverADashboard = () => {
   border-radius: var(--border-radius);
   margin-top: 1.5rem;
 }
-
 .card.resumen h3 {
   margin-bottom: 0.5rem;
   color: var(--dark);
 }
-
+.bloque-servicio {
+  margin-bottom: 1rem;
+}
 ul {
   list-style: none;
   padding-left: 0;
+  margin-bottom: 0.5rem;
 }
-
 li {
   padding: 4px 0;
   border-bottom: 1px solid #eee;
 }
-
 .total {
   font-size: 1.5rem;
   font-weight: bold;
   color: var(--primary);
 }
-
 .btn-group {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   margin-top: 2rem;
 }
-
 button {
   padding: 12px 18px;
   border: none;
@@ -206,26 +204,20 @@ button {
   transition: background-color 0.2s ease;
   font-weight: bold;
 }
-
 .guardar-btn {
   background-color: var(--primary);
   color: white;
 }
-
 .guardar-btn:hover {
   background-color: #006e53;
 }
-
 .volver-btn {
   background-color: #ccc;
   color: #000;
 }
-
 .volver-btn:hover {
   background-color: #bbb;
 }
-
-/* Overlay de carga */
 .overlay-carga {
   position: fixed;
   top: 0;
@@ -238,7 +230,6 @@ button {
   justify-content: center;
   z-index: 999;
 }
-
 .spinner {
   width: 50px;
   height: 50px;
@@ -247,7 +238,6 @@ button {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
