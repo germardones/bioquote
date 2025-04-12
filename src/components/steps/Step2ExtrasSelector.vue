@@ -29,16 +29,16 @@
     <p v-else>No hay servicios con adicionales seleccionados.</p>
 
     <div class="acciones">
-      <button class="btn-continuar activo" @click="$emit('next')">Continuar</button>
+      <button class="btn-continuar activo" @click="irAlSiguientePaso">Continuar</button>
       <button class="btn-volver" @click="volverAtras">← Volver atrás</button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuotationStore } from '../store/quotation'
+import { useQuotationStore } from '../../store/quotation'
 
 const router = useRouter()
 const store = useQuotationStore()
@@ -53,9 +53,7 @@ const adicionalesPorServicio = {
     { id: 'a5', nombre: 'Diseño no entregado', precio: 50000 },
     { id: 'a6', nombre: 'SEO avanzado', precio: 45000 }
   ],
-  2: [
-    { id: 'a7', nombre: 'Página adicional', precio: 50000 }
-  ],
+  2: [{ id: 'a7', nombre: 'Página adicional', precio: 50000 }],
   3: [
     { id: 'a8', nombre: 'Carga masiva de productos', precio: 50000 },
     { id: 'a9', nombre: 'Checkout personalizado', precio: 50000 },
@@ -84,12 +82,8 @@ const adicionalesPorServicio = {
     { id: 'a24', nombre: 'Diagnóstico extendido', precio: 120000 },
     { id: 'a25', nombre: 'Versión ejecutiva', precio: 50000 }
   ],
-  8: [
-    { id: 'a26', nombre: 'Conexiones reales / validación externa', precio: null }
-  ],
-  9: [
-    { id: 'a27', nombre: 'Horas de soporte técnico-comercial', precio: null }
-  ]
+  8: [{ id: 'a26', nombre: 'Conexiones reales / validación externa', precio: null }],
+  9: [{ id: 'a27', nombre: 'Horas de soporte técnico-comercial', precio: null }]
 }
 
 const serviciosConAdicionales = computed(() => {
@@ -107,9 +101,17 @@ const toggleAdicional = (a) => {
 }
 
 const volverAtras = () => {
-  router.back()
+  router.push({ name: 'Paso1Servicios' })
+}
+
+const irAlSiguientePaso = async () => {
+  store.adicionales = seleccionados.value
+  await nextTick()
+  router.push({ name: 'Paso3Horas' })
 }
 </script>
+
+
 
 <style scoped>
 .container {

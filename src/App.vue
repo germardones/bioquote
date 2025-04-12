@@ -75,6 +75,7 @@ const cerrarSesion = async () => {
 }
 
 .logo {
+  margin-left: 200px;
   height: 40px;
 }
 

@@ -64,9 +64,9 @@
 </template>
 
 <script setup>
-import { useQuotationStore } from '../store/quotation'
+import { useQuotationStore } from '../../store/quotation'
 import { useRouter } from 'vue-router'
-import { db, auth } from '../firebase/firebaseConfig'
+import { db, auth } from '../../firebase/firebaseConfig'
 import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore'
 import { ref } from 'vue'
 

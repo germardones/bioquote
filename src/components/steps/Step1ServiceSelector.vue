@@ -39,11 +39,11 @@
       <button
         :disabled="store.servicios.length === 0"
         :class="['btn-continuar', { activo: store.servicios.length > 0 }]"
-        @click="$emit('next')"
+        @click="irAlSiguientePaso"
       >
         Continuar
       </button>
-      <button @click="router.back()" class="btn-volver">← Volver atrás</button>
+      <button @click="volverAtras" class="btn-volver">← Volver atrás</button>
     </div>
   </div>
 </template>
@@ -51,7 +51,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuotationStore } from '../store/quotation'
+import { useQuotationStore } from '../../store/quotation'
 
 const router = useRouter()
 const store = useQuotationStore()
@@ -76,6 +76,16 @@ const toggleServicio = (servicio) => {
 }
 
 const estaSeleccionado = (id) => store.servicios.some(s => s.id === id)
+
+const volverAtras = () => {
+  router.push({ name: 'Dashboard' }) // vuelve al Dashboard
+}
+
+
+const irAlSiguientePaso = () => {
+  router.push({ name: 'Paso2Adicionales' })
+}
+
 
 const categorias = [
   {

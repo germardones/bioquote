@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { useQuotationStore } from '../store/quotation'
+import { useQuotationStore } from '../../store/quotation'
 import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 

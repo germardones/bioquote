@@ -7,7 +7,37 @@ import { auth } from '../firebase/firebaseConfig'
 const routes = [
   { path: '/', name: 'Login', component: Login },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
-  { path: '/cotizar', name: 'NewQuotation', component: NewQuotation },
+  {
+    path: '/cotizar',
+    component: NewQuotation,
+    children: [
+      {
+        path: '',
+        name: 'Paso1Servicios',
+        component: () => import('../components/steps/Step1ServiceSelector.vue')
+      },
+      {
+        path: 'adicionales',
+        name: 'Paso2Adicionales',
+        component: () => import('../components/steps/Step2ExtrasSelector.vue')
+      },
+      {
+        path: 'horas',
+        name: 'Paso3Horas',
+        component: () => import('../components/steps/Step3HoursInput.vue')
+      },
+      {
+        path: 'cliente',
+        name: 'Paso4Cliente',
+        component: () => import('../components/steps/Step4ClientData.vue')
+      },
+      {
+        path: 'Resumen',
+        name: 'Paso5Resumen',
+        component: () => import('../components/steps/Step5Summary.vue')
+      }
+    ]
+  },
   {
     path: '/imprimir',
     name: 'PrintView',
@@ -31,7 +61,7 @@ const routes = [
   {
     path: '/admin/cotizaciones',
     name: 'AdminCotizaciones',
-    component: () => import('../components/admin/cotizaciones.vue')
+    component: () => import('../components/admin/AdminCotizaciones.vue')
   },
   {
     path: '/admin/clientes',
