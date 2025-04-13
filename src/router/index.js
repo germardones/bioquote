@@ -72,7 +72,13 @@ const routes = [
     path: '/admin/ventas-servicio',
     name: 'AdminVentasServicio',
     component: () => import('../components/admin/AdminVentasPorServicio.vue')
+  },
+  {
+    path: '/bienvenida',
+    name: 'Bienvenida',
+    component: () => import('../views/Bienvenida.vue')
   }
+  
 ]
 
 const router = createRouter({

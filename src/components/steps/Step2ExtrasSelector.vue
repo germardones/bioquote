@@ -16,7 +16,7 @@
             v-for="a in adicionalesPorServicio[servicio.id]"
             :key="a.id"
             :class="{ activo: seleccionados.some(sel => sel.id === a.id) }"
-            @click="toggleAdicional(a)"
+            @click="toggleAdicional(a, servicio.id)"
           >
             <strong>{{ a.nombre }}</strong>
             <p v-if="a.precio">${{ a.precio.toLocaleString() }}</p>
@@ -90,15 +90,22 @@ const serviciosConAdicionales = computed(() => {
   return store.servicios.filter(s => adicionalesPorServicio[s.id]?.length > 0)
 })
 
-const toggleAdicional = (a) => {
-  const index = seleccionados.value.findIndex(item => item.id === a.id)
-  if (index >= 0) {
-    seleccionados.value.splice(index, 1)
+const toggleAdicional = (a, servicioId) => {
+  const existente = seleccionados.value.find(
+    item => item.id === a.id && item.servicioId === servicioId
+  )
+
+  if (existente) {
+    seleccionados.value = seleccionados.value.filter(
+      item => !(item.id === a.id && item.servicioId === servicioId)
+    )
   } else {
-    seleccionados.value.push(a)
+    seleccionados.value.push({ ...a, servicioId })
   }
+
   store.adicionales = seleccionados.value
 }
+
 
 const volverAtras = () => {
   router.push({ name: 'Paso1Servicios' })

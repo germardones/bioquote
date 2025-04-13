@@ -11,6 +11,7 @@
           <th>Total</th>
           <th>Vendedor</th>
           <th>Fecha</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -21,6 +22,9 @@
           <td>${{ (c.total || 0).toLocaleString() }}</td>
           <td>{{ c.vendedorNombre || c.vendedorUID || 'N/D' }}</td>
           <td>{{ formatFecha(c.createdAt?.toDate?.()) }}</td>
+          <td>
+            <button class="btn-eliminar" @click="eliminarCotizacion(c.id)">🗑️</button>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -32,13 +36,17 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { db } from '../../firebase/firebaseConfig'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import { useRouter } from 'vue-router'
 
 const cotizaciones = ref([])
 const router = useRouter()
 
 onMounted(async () => {
+  await cargarCotizaciones()
+})
+
+const cargarCotizaciones = async () => {
   try {
     const snapshot = await getDocs(collection(db, 'cotizaciones'))
     cotizaciones.value = snapshot.docs.map(doc => ({
@@ -48,7 +56,20 @@ onMounted(async () => {
   } catch (e) {
     console.error('Error al cargar cotizaciones:', e)
   }
-})
+}
+
+const eliminarCotizacion = async (id) => {
+  const confirmar = confirm('¿Estás seguro de que deseas eliminar esta cotización?')
+  if (!confirmar) return
+
+  try {
+    await deleteDoc(doc(db, 'cotizaciones', id))
+    cotizaciones.value = cotizaciones.value.filter(c => c.id !== id)
+  } catch (error) {
+    console.error('Error al eliminar cotización:', error)
+    alert('No se pudo eliminar la cotización.')
+  }
+}
 
 const formatFecha = (fecha) => {
   if (!fecha) return 'N/D'
@@ -98,5 +119,17 @@ th {
 
 .btn-volver:hover {
   background-color: #006e53;
+}
+
+.btn-eliminar {
+  background-color: transparent;
+  border: none;
+  color: #d9534f;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.btn-eliminar:hover {
+  color: #b52b27;
 }
 </style>

@@ -43,7 +43,6 @@ import { onMounted, ref } from 'vue'
 import { db, auth } from '../firebase/firebaseConfig'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useRouter } from 'vue-router'
-
 const router = useRouter()
 
 const goToCotizacion = () => {

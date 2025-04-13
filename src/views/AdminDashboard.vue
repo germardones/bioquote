@@ -23,15 +23,17 @@
       </div>
 
       <div class="card vendedores wide-2">
-        <h3>Top Vendedores</h3>
-        <ul>
-          <li v-for="(v, i) in topVendedores" :key="i">
-            <strong>#{{ i + 1 }}</strong> {{ v.nombre || v.uid }} —
-            {{ v.total || 0 }} cotizaciones —
-            ${{ formatearPesos(v.ventas) }}
-          </li>
-        </ul>
-      </div>
+  <h3>Top Vendedores</h3>
+  <ul>
+    <li v-for="(v, i) in topVendedores" :key="i">
+      <strong>#{{ i + 1 }}</strong>
+      {{ v.nombre || v.vendedorNombre || v.uid || 'Desconocido' }} —
+      {{ v.total || 0 }} cotizaciones —
+      ${{ formatearPesos(v.ventas) }}
+    </li>
+  </ul>
+</div>
+
 
       <div class="card wide">
         <h3>Últimas Cotizaciones</h3>

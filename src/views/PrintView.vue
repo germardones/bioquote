@@ -59,13 +59,11 @@
     <div class="totales">
       <p><strong>SUBTOTAL:</strong> ${{ subtotal.toLocaleString() }}</p>
       <p><strong>IVA (19%):</strong> ${{ iva.toLocaleString() }}</p>
-      <p><strong>TOTAL:</strong> ${{ store.total.toLocaleString() }}</p>
       <p><strong>TOTAL + IVA:</strong> ${{ totalConIVA.toLocaleString() }}</p>
     </div>
 
     <div class="mensajes-finales">
       <p><em>Esta cotización tiene una validez de 30 días desde su emisión. Pasado este plazo, los valores podrían ser modificados.</em></p>
-      <p><strong>Importante:</strong> Si esta es su primera compra con nosotros, puede acceder a un <strong>10% de descuento</strong>. Consulte con nuestro equipo para confirmar la vigencia de este beneficio.</p>
     </div>
 
     <button class="volver-btn" @click="volverADashboard">Volver al Dashboard</button>
@@ -134,3 +132,113 @@ onMounted(() => {
   }
 })
 </script>
+<style scoped>
+.cotizacion-container {
+  max-width: 960px;
+  margin: 2rem auto;
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 15px;
+  color: #111;
+  background: #fff;
+  padding: 2rem;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+}
+
+.encabezado {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.empresa p,
+.datos-cotizacion p {
+  margin: 0.2rem 0;
+}
+
+.seccion {
+  margin-top: 2rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.5rem;
+}
+
+.cliente p {
+  margin: 0.3rem 0;
+}
+
+.tabla-servicios {
+  width: 100%;
+  margin-top: 1.5rem;
+  border-collapse: collapse;
+}
+
+.tabla-servicios th,
+.tabla-servicios td {
+  border: 1px solid #ccc;
+  padding: 0.75rem;
+  text-align: left;
+  font-size: 14px;
+}
+
+.tabla-servicios th {
+  background-color: #f5f5f5;
+}
+
+.tabla-servicios td[colspan="2"] {
+  text-align: center;
+  font-style: italic;
+  color: #777;
+}
+
+.totales {
+  margin-top: 2rem;
+  border-top: 2px solid #eee;
+  padding-top: 1rem;
+  font-size: 15px;
+}
+
+.totales p {
+  margin: 0.3rem 0;
+}
+
+.mensajes-finales {
+  margin-top: 2rem;
+  font-size: 0.95rem;
+  color: #444;
+}
+
+.volver-btn {
+  margin-top: 2rem;
+  padding: 10px 20px;
+  background-color: var(--primary, #008366);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.volver-btn:hover {
+  background-color: #006e53;
+}
+
+@media print {
+  .volver-btn {
+    display: none;
+  }
+
+  .cotizacion-container {
+    box-shadow: none;
+    padding: 0;
+  }
+
+  body {
+    background: white !important;
+    margin: 0 !important;
+  }
+}
+</style>
+

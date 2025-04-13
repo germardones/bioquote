@@ -28,7 +28,7 @@
     </div>
 
     <div class="btn-group">
-      <button class="continuar-btn" @click="guardarYContinuar">Continuar</button>
+      <button class="btn-continuar" @click="guardarYContinuar">Continuar</button>
       <button @click="volverAtras" class="btn-volver">← Volver atrás</button>
     </div>
   </div>
@@ -40,12 +40,12 @@ import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const emit = defineEmits(['next'])
 const store = useQuotationStore()
 
 const cliente = reactive({ ...store.cliente })
 const errores = reactive({})
 
+// Validaciones
 const validarRut = (rut) => /^[0-9]{1,2}\.?[0-9]{3}\.?[0-9]{3}-[0-9kK]$/.test(rut)
 const validarEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 const validarTelefono = (telefono) => {
@@ -56,37 +56,43 @@ const validarTelefono = (telefono) => {
 const guardarYContinuar = () => {
   errores.nombre = !cliente.nombre ? 'El nombre es obligatorio.' : ''
   errores.razonSocial = !cliente.razonSocial ? 'La razón social es obligatoria.' : ''
+  errores.rut = cliente.rut && !validarRut(cliente.rut)
+    ? 'Formato de RUT no válido. Ej: 12.345.678-9'
+    : ''
   errores.email = !cliente.email
     ? 'El correo electrónico es obligatorio.'
     : !validarEmail(cliente.email)
       ? 'Correo electrónico no válido.'
       : ''
-  errores.rut = cliente.rut && !validarRut(cliente.rut)
-    ? 'Formato de RUT no válido. Ej: 12.345.678-9'
-    : ''
   errores.contacto = cliente.contacto && !validarTelefono(cliente.contacto)
     ? 'Número de contacto no válido (debe tener entre 9 y 12 dígitos).'
     : ''
 
-  const hayErrores = Object.values(errores).some((e) => e)
+  const hayErrores = Object.values(errores).some(Boolean)
   if (hayErrores) return
 
   store.cliente = cliente
-  emit('next')
+  router.push({ name: 'Paso5Resumen' })
 }
 
 const volverAtras = () => {
-  router.back()
+  router.push({ name: 'Paso3Horas' })
 }
 </script>
 
 <style scoped>
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
 .card {
   background: #f9f9f9;
   padding: 1.5rem;
   margin-top: 1.5rem;
   border: 1px solid #ddd;
-  border-radius: var(--border-radius);
+  border-radius: 12px;
 }
 
 input {
@@ -94,7 +100,7 @@ input {
   margin-bottom: 0.5rem;
   width: 100%;
   box-sizing: border-box;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   border: 1px solid #ccc;
 }
 
@@ -111,10 +117,10 @@ label {
   flex-wrap: wrap;
 }
 
-.continuar-btn,
+.btn-continuar,
 .btn-volver {
   padding: 12px 20px;
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   border: none;
   font-weight: bold;
   cursor: pointer;
@@ -122,7 +128,7 @@ label {
   color: white;
 }
 
-.continuar-btn:hover,
+.btn-continuar:hover,
 .btn-volver:hover {
   background-color: #006e53;
 }
