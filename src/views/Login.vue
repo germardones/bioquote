@@ -142,7 +142,7 @@ button {
   background-color: var(--primary);
   color: white;
   cursor: pointer;
-}
+}.
 
 button[disabled] {
   background-color: #ccc;
