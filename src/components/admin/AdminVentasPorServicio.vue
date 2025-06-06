@@ -2,6 +2,9 @@
   <div class="cotizacion-container" v-if="datosCargados">
 
     <h3 class="seccion">RESUMEN DE VENTAS</h3>
+    <p class="total-global">
+      Ventas posibles: ${{ totalVentas.toLocaleString() }}
+    </p>
 
     <div class="resumen-tablas">
       <div class="tabla-bloque">
@@ -85,6 +88,7 @@ const datosCargados = ref(false)
 const ventasPorServicio = ref({})
 const ventasPorCategoria = ref({})
 const ventasPorAdicional = ref({})
+const totalVentas = ref(0)
 
 onMounted(async () => {
   const snapshot = await getDocs(collection(db, 'cotizaciones'))
@@ -95,22 +99,30 @@ onMounted(async () => {
   const adicionales = {}
 
   data.forEach(c => {
+    totalVentas.value += c.total || 0
     const serviciosCotizados = c.servicios || (c.servicioBase ? [c.servicioBase] : [])
     const categoriaNombre = s => s.categoria || 'Sin categoría'
 
     serviciosCotizados.forEach(s => {
       if (!s || !s.nombre) return
 
+      const base = s.cobroBase || 0
+      const extrasServicio = (c.adicionales || [])
+        .filter(a => a.servicioId === s.id)
+        .reduce((sum, a) => sum + (a.precio || 0), 0)
+      const extraHoras = (c.horasExtra || 0) * (s.cobroAdicional || 0)
+      const totalServicio = base + extrasServicio + extraHoras
+
       // Por Servicio
       if (!servicios[s.nombre]) servicios[s.nombre] = { cantidad: 0, total: 0 }
       servicios[s.nombre].cantidad++
-      servicios[s.nombre].total += s.cobroBase || 0
+      servicios[s.nombre].total += totalServicio
 
       // Por Categoría
       const cat = categoriaNombre(s)
       if (!categorias[cat]) categorias[cat] = { cantidad: 0, total: 0 }
       categorias[cat].cantidad++
-      categorias[cat].total += s.cobroBase || 0
+      categorias[cat].total += totalServicio
     })
 
     // Por Adicionales
@@ -163,6 +175,11 @@ const volverADashboard = () => router.push('/dashboard')
 
 .tabla-servicios th {
   background-color: #f5f5f5;
+}
+
+.total-global {
+  margin-top: 0.5rem;
+  font-weight: bold;
 }
 
 .volver-btn {
