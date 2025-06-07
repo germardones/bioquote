@@ -24,7 +24,9 @@ export const useQuotationStore = defineStore('quotation', {
 
       let adicionales = this.adicionales.reduce((sum, item) => sum + item.precio, 0)
 
-      let cobroAdicional = this.servicio?.cobroAdicional || 0
+      let cobroAdicional = this.servicios.length
+        ? this.servicios.reduce((sum, s) => sum + (s.cobroAdicional || 0), 0)
+        : this.servicio?.cobroAdicional || 0
       let extra = this.horasExtra * cobroAdicional
 
       return totalServicios + adicionales + extra

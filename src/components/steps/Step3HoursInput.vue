@@ -16,7 +16,7 @@
 
       <p style="margin-top: 1rem;">
         Total por horas extra:
-        <strong>${{ horas * (store.servicio?.cobroAdicional || 0) }}</strong>
+        <strong>${{ horas * tarifaHora }}</strong>
       </p>
     </div>
 
@@ -28,7 +28,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuotationStore } from '../../store/quotation'
 
@@ -36,6 +36,10 @@ const router = useRouter()
 const store = useQuotationStore()
 
 const horas = ref(store.horasExtra)
+
+const tarifaHora = computed(() =>
+  store.servicios.reduce((sum, s) => sum + (s.cobroAdicional || 0), 0)
+)
 
 const guardarYContinuar = () => {
   store.horasExtra = horas.value
