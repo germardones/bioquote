@@ -22,7 +22,9 @@
 
     <div class="acciones">
       <button class="btn-continuar" @click="guardarYContinuar">Continuar</button>
-      <button class="btn-volver" @click="volverAtras">← Volver atrás</button>
+      <button class="btn-volver" @click="volverAtras">
+        <span class="icon">⬅️</span> Volver
+      </button>
     </div>
   </div>
 </template>
@@ -78,21 +80,12 @@ input[type='number'] {
   margin-top: 2rem;
 }
 
-.btn-continuar,
-.btn-volver {
+.btn-continuar {
   padding: 12px 20px;
   border-radius: 8px;
   font-weight: bold;
   border: none;
   cursor: pointer;
-}
-
-.btn-continuar {
-  background-color: var(--primary);
-  color: white;
-}
-
-.btn-volver {
   background-color: var(--primary);
   color: white;
 }

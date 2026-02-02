@@ -108,28 +108,52 @@ const loginConCorreo = async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #f1f1f1;
+  background-color: var(--bg-app);
   padding: 2rem;
+  transition: background-color 0.3s;
 }
 
 .card {
-  background-color: white;
+  background-color: var(--bg-surface);
   padding: 2rem;
   border-radius: var(--border-radius);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow);
   width: 100%;
   max-width: 400px;
+  transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+}
+
+h2 {
+  color: var(--text-main);
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 input {
   width: 100%;
   padding: 10px;
-  margin-top: 0.25rem;
   margin-bottom: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--input-bg);
+  color: var(--text-main);
   font-size: 1rem;
   box-sizing: border-box;
+  transition: border-color 0.2s, background-color 0.3s, color 0.3s;
+}
+
+input:focus {
+  border-color: var(--primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 131, 102, 0.2);
 }
 
 button {
@@ -137,21 +161,28 @@ button {
   padding: 10px;
   margin-top: 0.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--border-radius);
   font-weight: bold;
   background-color: var(--primary);
   color: white;
   cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+button:hover:not(:disabled) {
+  background-color: var(--primary-hover);
 }
 
 button[disabled] {
   background-color: #ccc;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .error {
-  color: red;
+  color: #ef4444;
   margin-top: 1rem;
   font-weight: bold;
+  text-align: center;
 }
 </style>

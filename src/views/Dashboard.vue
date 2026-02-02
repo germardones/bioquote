@@ -1,38 +1,83 @@
 <template>
-  <div class="container">
-    <h2>Dashboard - Vendedor</h2>
+  <div class="container fade-in">
+    <div class="header-row">
+      <h2>Dashboard BioBio Code</h2>
+      <button v-if="esAdmin" class="admin-switch" @click="router.push('/admin')">
+        Cambiar a Vista Admin
+      </button>
+    </div>
 
-    <button class="nueva-cotizacion" @click="goToCotizacion">
-      Nueva Cotización
-    </button>
+    <!-- Section: Operations -->
+    <div class="dashboard-section category-operations">
+      <h3 class="section-title"><i class="fa-solid fa-gears"></i> Operaciones</h3>
+      <div class="grid">
+        <div class="card" @click="router.push('/proyectos-en-curso')">
+          <div class="card-icon"><i class="fa-solid fa-rocket"></i></div>
+          <div>
+            <h3>Proyectos en Curso</h3>
+          </div>
+        </div>
 
-    <button v-if="esAdmin" class="admin-switch" @click="router.push('/admin')">
-      Cambiar a Vista Admin
-    </button>
-
-    <div class="grid">
-      <div class="card highlight">
-        <h3>Total Cotizaciones</h3>
-        <p>{{ totalCotizaciones }}</p>
+        <div class="card" @click="router.push('/usuarios')">
+          <div class="card-icon"><i class="fa-solid fa-user-gear"></i></div>
+          <div>
+            <h3>Gestión de Usuarios</h3>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div class="card" @click="router.push('/clientes')">
-        <h3>Clientes Atendidos</h3>
-        <p>{{ totalClientes }}</p>
+    <!-- Section: Sales -->
+    <div class="dashboard-section category-sales">
+      <h3 class="section-title"><i class="fa-solid fa-handshake"></i> Ventas</h3>
+      <div class="grid">
+        <div class="card highlight" @click="goToCotizacion">
+          <div class="card-icon"><i class="fa-solid fa-file-circle-plus"></i></div>
+          <div>
+            <h3>Nueva Cotización</h3>
+          </div>
+        </div>
+
+        <div class="card" @click="router.push('/cotizaciones')">
+          <div class="card-icon"><i class="fa-solid fa-folder-open"></i></div>
+          <div>
+            <h3>Total Cotizaciones</h3>
+          </div>
+        </div>
+
+        <div class="card" @click="router.push('/clientes')">
+          <div class="card-icon"><i class="fa-solid fa-users"></i></div>
+          <div>
+             <h3>CRM Clientes</h3>
+          </div>
+        </div>
       </div>
+    </div>
 
-      <div class="card">
-        <h3>Cotizaciones este mes</h3>
-        <p>{{ cotizacionesMes }}</p>
-      </div>
-
-      <div class="card full-width">
-        <h3>Cotizaciones Recientes</h3>
-        <ul class="lista-reciente">
-          <li v-for="(c, i) in ultimasCotizaciones" :key="i">
-            {{ c.codigo }} | {{ c.cliente?.nombre || 'Cliente' }} - ${{ c.total.toLocaleString() }}
-          </li>
-        </ul>
+    <!-- Section: Financial -->
+    <div class="dashboard-section category-financial">
+      <h3 class="section-title"><i class="fa-solid fa-coins"></i> Financiero</h3>
+      <div class="grid">
+        <div class="card clickable" @click="router.push('/finanzas/ventas')">
+          <div class="card-icon"><i class="fa-solid fa-money-check-dollar"></i></div>
+          <div><h3>Total Vendido</h3></div>
+        </div>
+        <div class="card clickable" @click="router.push('/finanzas/recaudacion')">
+          <div class="card-icon"><i class="fa-solid fa-sack-dollar"></i></div>
+          <div><h3>Recaudado</h3></div>
+        </div>
+        <div class="card clickable" @click="router.push('/finanzas/flujo-caja')">
+          <div class="card-icon"><i class="fa-solid fa-cash-register"></i></div>
+          <div><h3>Flujo de Caja</h3></div>
+        </div>
+        <div class="card clickable" @click="router.push('/finanzas/proyeccion')">
+          <div class="card-icon"><i class="fa-solid fa-chart-line"></i></div>
+          <div><h3>Proyección</h3></div>
+        </div>
+        <div class="card clickable" @click="router.push('/finanzas/costos')">
+          <div class="card-icon"><i class="fa-solid fa-wallet"></i></div>
+          <div><h3>Costo Real</h3></div>
+        </div>
       </div>
     </div>
   </div>
@@ -43,148 +88,77 @@ import { onMounted, ref } from 'vue'
 import { db, auth } from '../firebase/firebaseConfig'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { useRouter } from 'vue-router'
-const router = useRouter()
+import { useFinancials } from '../composables/useFinancials' 
 
-const goToCotizacion = () => {
-  router.push('/cotizar')
-}
+const router = useRouter()
+const { kpis, fetchFinancialData } = useFinancials()
+
+const goToCotizacion = () => { router.push('/cotizar') }
 
 const totalCotizaciones = ref(0)
 const totalClientes = ref(0)
 const cotizacionesMes = ref(0)
-const ultimasCotizaciones = ref([])
+const proyectosEnCurso = ref(0)
 const esAdmin = ref(false)
-
 const user = auth.currentUser
 
 onMounted(async () => {
   if (!user) return
-
-  // Consultar rol desde la colección usuarios
+  fetchFinancialData()
   const usuarioRef = doc(db, 'usuarios', user.uid)
   const usuarioSnap = await getDoc(usuarioRef)
+  if (usuarioSnap.exists() && usuarioSnap.data().rol === 'admin') esAdmin.value = true
 
-  if (usuarioSnap.exists()) {
-    const datos = usuarioSnap.data()
-    if (datos.rol === 'admin') {
-      esAdmin.value = true
-    }
-  }
-
-  // Consultar cotizaciones
-  const cotizacionesSnapshot = await getDocs(collection(db, 'cotizaciones'))
-  const data = cotizacionesSnapshot.docs.map(doc => doc.data())
-
-  const cotizacionesUsuario = data.filter(c => c.vendedorUID === user?.uid)
-
-  totalCotizaciones.value = cotizacionesUsuario.length
+  const projectsSnapshot = await getDocs(collection(db, 'projects'))
+  const data = projectsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+  const projectsUsuario = data.filter(p => p.owner_uid === user?.uid)
 
   const clientesUnicos = new Set()
   const esteMes = new Date().getMonth()
 
-  cotizacionesUsuario.forEach(c => {
-    if (c?.cliente?.rut) clientesUnicos.add(c.cliente.rut)
-    const fecha = c.createdAt?.toDate?.()
+  projectsUsuario.forEach(p => {
+    const rut = p.client_data?.rut || p.client_name
+    if (rut) clientesUnicos.add(rut)
+    const fecha = p.created_at?.toDate?.()
     if (fecha && fecha.getMonth() === esteMes) cotizacionesMes.value++
+    if (p.status === 'En Curso' || p.status === 'Completed') {
+        proyectosEnCurso.value++
+    } else {
+        totalCotizaciones.value++
+    }
   })
-
   totalClientes.value = clientesUnicos.size
-  ultimasCotizaciones.value = cotizacionesUsuario
-    .sort((a, b) => b.createdAt?.seconds - a.createdAt?.seconds)
-    .slice(0, 5)
 })
 </script>
 
 <style scoped>
-.grid {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  margin-top: 2rem;
-  justify-content: center;
-}
+.container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 2rem; }
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.admin-switch { background-color: #333; color: white; padding: 8px 15px; border-radius: 6px; border: none; cursor: pointer; }
+.dashboard-section { margin-bottom: 3rem; }
+.section-title { font-size: 1.4rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
 
-@media (min-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
+.category-operations .section-title { color: #3b82f6; border-bottom-color: rgba(59, 130, 246, 0.3); }
+.category-operations .card { border-bottom: 3px solid #3b82f6; }
+.category-operations .card-icon { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
 
-@media (min-width: 1024px) {
-  .grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
+.category-sales .section-title { color: #22c55e; border-bottom-color: rgba(34, 197, 94, 0.3); }
+.category-sales .card { border-bottom: 3px solid #22c55e; }
+.category-sales .card-icon { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
 
-.card {
-  background: linear-gradient(to top right, #f9f9f9, #ffffff);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.06);
-  border-left: 5px solid var(--primary);
-  transition: transform 0.2s ease;
-}
+.category-financial .section-title { color: #f97316; border-bottom-color: rgba(249, 115, 22, 0.3); }
+.category-financial .card { border-bottom: 3px solid #f97316; }
+.category-financial .card-icon { background: rgba(249, 115, 22, 0.1); color: #f97316; }
 
-.card:hover {
-  transform: translateY(-4px);
-}
+.grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.card { background: var(--bg-surface); border-radius: 12px; padding: 1.5rem; box-shadow: var(--shadow); display: flex; align-items: center; gap: 1.2rem; cursor: pointer; border: 1px solid var(--border-color); transition: all 0.25s ease; position: relative; overflow: hidden; }
+.card:hover { transform: translateY(-4px); box-shadow: 0 12px 20px rgba(0, 0, 0, 0.12); }
+.category-operations .card:hover { border-color: #3b82f6; }
+.category-sales .card:hover { border-color: #22c55e; }
+.category-financial .card:hover { border-color: #f97316; }
 
-.card h3 {
-  margin-top: 0;
-  margin-bottom: 0.5rem;
-  color: var(--dark);
-}
-
-.card p {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin: 0;
-}
-
-.card.full-width {
-  grid-column: span 1;
-}
-
-@media (min-width: 1024px) {
-  .card.full-width {
-    grid-column: span 3;
-  }
-}
-
-.lista-reciente {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  font-size: 1rem;
-  color: #333;
-}
-
-.lista-reciente li {
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
-}
-
-.nueva-cotizacion,
-.admin-switch {
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-  margin-top: 1rem;
-  margin-right: 1rem;
-}
-
-.nueva-cotizacion:hover,
-.admin-switch:hover {
-  background-color: #006e53;
-}
-
-.highlight {
-  background-color: #e8f9f3;
-  border-left-color: var(--primary);
-}
+.card-icon { font-size: 1.4rem; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center; border-radius: 10px; transition: all 0.3s ease; }
+.card:hover .card-icon { transform: scale(1.1); }
+.card h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-main); }
+.card p { margin: 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
 </style>

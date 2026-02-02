@@ -1,7 +1,9 @@
 <template>
     <div class="container">
       <h2>Gestión de Clientes</h2>
-      <button @click="router.push('/admin')" class="btn-volver">← Volver</button>
+      <button @click="router.push('/admin')" class="btn-volver">
+        <span class="icon">⬅️</span> Volver
+      </button>
 
       <div v-if="clientes.length > 0">
         <table>
@@ -58,11 +60,19 @@ const router = useRouter()
   const clientes = ref([])
   
   onMounted(async () => {
-    const q = query(collection(db, 'cotizaciones'))
+    const q = query(collection(db, 'projects'))
     const snapshot = await getDocs(q)
     const vistos = new Set()
     snapshot.forEach((docSnap) => {
-      const c = docSnap.data().cliente
+      const data = docSnap.data()
+      // client_data struct or fallback
+      const c = data.client_data || { 
+        nombre: data.client_name, 
+        // Fallbacks if data is missing, though Step5 saves it all
+        rut: 'N/A', 
+        email: 'N/A' 
+      }
+      
       if (c?.rut && !vistos.has(c.rut)) {
         vistos.add(c.rut)
         clientes.value.push({ ...c })
@@ -72,15 +82,18 @@ const router = useRouter()
   
   const guardarCliente = async (cliente) => {
     try {
-      const q = query(collection(db, 'cotizaciones'))
+      const q = query(collection(db, 'projects'))
       const snapshot = await getDocs(q)
       const batch = []
   
       snapshot.forEach((docSnap) => {
         const data = docSnap.data()
-        if (data.cliente?.rut === cliente.rut) {
-          const ref = doc(db, 'cotizaciones', docSnap.id)
-          batch.push(updateDoc(ref, { cliente }))
+        if (data.client_data?.rut === cliente.rut) {
+          const ref = doc(db, 'projects', docSnap.id)
+          batch.push(updateDoc(ref, { 
+            client_data: cliente,
+            client_name: cliente.nombre // Update redundancy
+          }))
         }
       })
   
@@ -105,16 +118,22 @@ const router = useRouter()
   th,
   td {
     padding: 0.75rem;
-    border: 1px solid #ddd;
+    border: 1px solid var(--border-color);
     text-align: left;
+    color: var(--text-main);
   }
   th {
-    background-color: #f5f5f5;
+    background-color: var(--bg-app);
+    color: var(--text-muted);
   }
   input {
     width: 100%;
     padding: 4px;
     box-sizing: border-box;
+    background: var(--input-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
   }
   button {
     padding: 6px 12px;
@@ -123,24 +142,11 @@ const router = useRouter()
     border: none;
     border-radius: 6px;
     cursor: pointer;
+    transition: background-color 0.2s;
   }
   button:hover {
-    background-color: #006e53;
+    background-color: var(--primary-hover);
   }
-  .btn-volver {
-  background-color: var(--primary);
-  color: white;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-bottom: 1rem;
-}
-
-.btn-volver:hover {
-  background-color: #006e53;
-}
 
   </style>
   

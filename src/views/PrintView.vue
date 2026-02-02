@@ -1,244 +1,327 @@
 <template>
-  <div class="cotizacion-container" v-if="datosCargados">
-    <div class="encabezado">
-      <div class="empresa">
-        <p><strong>BioBio Code</strong></p>
+  <div class="print-layout" v-if="project">
+    <!-- Header Empresa -->
+    <header class="header">
+      <div class="company-info">
+        <h1>BIOBIO CODE</h1>
         <p>Barros Arana 492, Of. 78, Concepción</p>
         <p>RUT: 76.123.456-7</p>
         <p>+56 9 3104 7688</p>
         <p>contacto@biobiocode.cl</p>
       </div>
-      <div class="datos-cotizacion">
-        <p><strong>NÚMERO:</strong> {{ store.codigo }}</p>
-        <p><strong>FECHA:</strong> {{ fecha }}</p>
-        <p><strong>VÁLIDO HASTA:</strong> {{ fechaValidez }}</p>
+      <div class="quotation-meta">
+        <h2>COTIZACIÓN</h2>
+        <div class="meta-row">
+            <span>Nº Cotización:</span>
+            <strong>{{ project.codigo }}</strong>
+        </div>
+        <div class="meta-row">
+            <span>Fecha Emisión:</span>
+            <strong>{{ formatFecha(project.created_at) }}</strong>
+        </div>
+        <div class="meta-row">
+            <span>Validez:</span>
+            <strong>30 días</strong>
+        </div>
       </div>
-    </div>
+    </header>
 
-    <h3 class="seccion">DATOS DEL CLIENTE</h3>
-    <div class="cliente">
-      <p><strong>Nombre:</strong> {{ store.cliente.nombre }}</p>
-      <p><strong>Dirección:</strong> {{ store.cliente.direccion || '(Sin dirección)' }}</p>
-      <p><strong>RUT:</strong> {{ store.cliente.rut }}</p>
-      <p><strong>Teléfono:</strong> {{ store.cliente.contacto }}</p>
-      <p><strong>E-mail:</strong> {{ store.cliente.email || '(Sin email)' }}</p>
-    </div>
+    <hr class="divider">
 
-    <table class="tabla-servicios">
-      <thead>
+    <!-- Cliente -->
+    <section class="client-section">
+      <h3>DATOS DEL CLIENTE</h3>
+      <table class="client-table">
         <tr>
-          <th>DESCRIPCIÓN</th>
-          <th>UNIDADES</th>
-          <th>PRECIO</th>
-          <th>TOTAL</th>
+            <th>Razón Social:</th>
+            <td>{{ project.client_data?.razonSocial || project.client_name }}</td>
         </tr>
-      </thead>
-      <tbody>
-        <tr v-for="servicio in store.servicios" :key="servicio.id">
-          <td>{{ servicio.nombre }}</td>
-          <td>1</td>
-          <td>${{ servicio.cobroBase.toLocaleString() }}</td>
-          <td>${{ servicio.cobroBase.toLocaleString() }}</td>
+        <tr>
+            <th>RUT:</th>
+            <td>{{ project.client_data?.rut || '-' }}</td>
         </tr>
-        <tr v-for="a in store.adicionales" :key="a.id">
-          <td>{{ a.nombre }}</td>
-          <td>1</td>
-          <td v-if="a.precio">${{ a.precio.toLocaleString() }}</td>
-          <td v-if="a.precio">${{ a.precio.toLocaleString() }}</td>
-          <td v-else colspan="2">Se calculará posteriormente</td>
+        <tr>
+            <th>Dirección:</th>
+            <td>{{ project.client_data?.direccion || '-' }}</td>
         </tr>
-        <tr v-if="store.horasExtra > 0">
-          <td>Horas Extra</td>
-          <td>{{ store.horasExtra }}</td>
-          <td>${{ totalHora.toLocaleString() }}</td>
-          <td>${{ (store.horasExtra * totalHora).toLocaleString() }}</td>
+        <tr>
+            <th>Contacto:</th>
+            <td>{{ project.client_data?.contacto || '-' }}</td>
         </tr>
-      </tbody>
-    </table>
+        <tr>
+            <th>Email:</th>
+            <td>{{ project.client_data?.email || '-' }}</td>
+        </tr>
+      </table>
+    </section>
 
-    <div class="totales">
-      <p><strong>SUBTOTAL:</strong> ${{ subtotal.toLocaleString() }}</p>
-      <p><strong>IVA (19%):</strong> ${{ iva.toLocaleString() }}</p>
-      <p><strong>TOTAL + IVA:</strong> ${{ totalConIVA.toLocaleString() }}</p>
+    <!-- Detalle -->
+    <section class="details-section">
+      <h3>DETALLE DEL SERVICIO</h3>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>Descripción</th>
+            <th>Cantidad</th>
+            <th class="text-right">Precio Unitario</th>
+            <th class="text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Parametric Mode -->
+          <tr v-if="project.specs?.type !== 'custom'">
+            <td>
+                <strong>Desarrollo de Software / Servicios Tecnológicos</strong>
+                <br>
+                <small>Proyecto: {{ project.name }}</small>
+                <br>
+                <small class="specs-summary">
+                    Especificaciones: {{ project.specs?.entity_count }} Entidades, 
+                    {{ project.specs?.role_count }} Roles, 
+                    {{ project.specs?.view_count }} Vistas, 
+                    {{ project.specs?.api_count }} APIs.
+                    Complejidad: {{ project.specs?.complexity }}x.
+                </small>
+            </td>
+            <td>1</td>
+            <td class="text-right">${{ (project.financials?.quoted_price || 0).toLocaleString() }}</td>
+            <td class="text-right">${{ (project.financials?.quoted_price || 0).toLocaleString() }}</td>
+          </tr>
+
+          <!-- Custom Mode -->
+          <template v-else>
+               <tr v-for="(item, index) in project.specs?.custom_items" :key="index">
+                   <td>
+                       <strong>{{ item.description }}</strong>
+                       <br>
+                       <small v-if="item.observation">{{ item.observation }}</small>
+                   </td>
+                   <td>
+                       <span v-if="item.pricingMethod === 'fixed'">1</span>
+                       <span v-else>{{ item.hours }} hrs</span>
+                   </td>
+                   <td class="text-right">
+                       <span v-if="item.pricingMethod === 'fixed'">${{ (item.fixedValue || 0).toLocaleString() }}</span>
+                       <span v-else>${{ (item.rate || 0).toLocaleString() }}</span>
+                   </td>
+                   <td class="text-right">
+                       <span v-if="item.pricingMethod === 'fixed'">${{ (item.fixedValue || 0).toLocaleString() }}</span>
+                       <span v-else>${{ (item.hours * item.rate).toLocaleString() }}</span>
+                   </td>
+               </tr>
+          </template>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- Totales -->
+    <section class="totals-section">
+      <div class="totals-box">
+        <div class="total-row">
+            <span>Neto:</span>
+            <span>${{ (project.financials?.quoted_price || 0).toLocaleString() }}</span>
+        </div>
+        <div class="total-row">
+            <span>IVA (19%):</span>
+            <span>${{ calculateIVA(project.financials?.quoted_price).toLocaleString() }}</span>
+        </div>
+        <div class="total-row grand-total">
+            <span>TOTAL:</span>
+            <span>${{ calculateTotal(project.financials?.quoted_price).toLocaleString() }}</span>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+        <p>Gracias por preferir a BioBio Code.</p>
+        <p class="disclaimer">Documento válido para fines informativos y comerciales. No constituye factura electrónica.</p>
+    </footer>
+
+    <!-- Botones (No se imprimen) -->
+    <div class="no-print action-buttons">
+        <button @click="print" class="btn-print">🖨️ Imprimir</button>
+        <button @click="router.push('/dashboard')" class="btn-volver">
+          <span class="icon">⬅️</span> Volver
+        </button>
     </div>
 
-    <div class="mensajes-finales">
-      <p><em>Esta cotización tiene una validez de 30 días desde su emisión. Pasado este plazo, los valores podrían ser modificados.</em></p>
-    </div>
-
-    <button class="volver-btn" @click="volverADashboard">Volver al Dashboard</button>
   </div>
-
-  <div v-else>
-    <p>Cargando datos de cotización...</p>
-  </div>
+  <div v-else class="loading">Cargando datos de cotización...</div>
 </template>
 
 <script setup>
-import { useQuotationStore } from '../store/quotation'
-import { useRouter } from 'vue-router'
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { db } from '../firebase/firebaseConfig'
+import { doc, getDoc } from 'firebase/firestore'
 
-const store = useQuotationStore()
+const route = useRoute()
 const router = useRouter()
+const project = ref(null)
 
-const datosCargados = ref(false)
+const projectId = route.params.id
 
-const fecha = new Date().toLocaleDateString()
-const fechaValidez = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString()
-
-const totalHora = computed(() =>
-  store.servicios.reduce((sum, s) => sum + (s.cobroAdicional || 0), 0)
-)
-
-const subtotal = computed(() => {
-  const base = store.servicios.reduce((sum, s) => sum + (s.cobroBase || 0), 0)
-  const adicionales = store.adicionales.reduce((sum, a) => sum + (a.precio || 0), 0)
-  const extra = store.horasExtra * totalHora.value
-  return base + adicionales + extra
-})
-
-const iva = computed(() => Math.round(subtotal.value * 0.19))
-const totalConIVA = computed(() => subtotal.value + iva.value)
-
-const volverADashboard = () => {
-  if (confirm('¿Estás seguro de salir?')) {
-    store.reset()
-    router.push('/dashboard')
-  }
-}
-
-onMounted(() => {
-  const localData = localStorage.getItem('ultimaCotizacion')
-  if (localData) {
+onMounted(async () => {
+    if (!projectId) return
     try {
-      const cot = JSON.parse(localData)
-      if (cot?.cliente && cot?.servicios) {
-        store.cliente = cot.cliente
-        store.servicios = cot.servicios
-        store.adicionales = cot.adicionales || []
-        store.horasExtra = cot.horasExtra || 0
-        store.codigo = cot.codigo || ''
-        store.empresa = cot.empresa || {}
-        datosCargados.value = true
-
-        setTimeout(() => {
-          window.print()
-        }, 300)
-      }
+        const docRef = doc(db, 'projects', projectId)
+        const docSnap = await getDoc(docRef)
+        if (docSnap.exists()) {
+            project.value = {
+                id: docSnap.id,
+                codigo: docSnap.id.substring(0, 8).toUpperCase(),
+                ...docSnap.data()
+            }
+            // Auto print opcional
+            // setTimeout(() => window.print(), 1000)
+        }
     } catch (e) {
-      console.error('Error al cargar cotización desde localStorage:', e)
+        console.error("Error loading project for print", e)
     }
-  }
 })
+
+const formatFecha = (timestamp) => {
+  if (!timestamp || !timestamp.toDate) return new Date().toLocaleDateString('es-CL')
+  return timestamp.toDate().toLocaleDateString('es-CL')
+}
+
+const calculateIVA = (neto) => {
+    return Math.round((neto || 0) * 0.19)
+}
+
+const calculateTotal = (neto) => {
+    return (neto || 0) + calculateIVA(neto)
+}
+
+const print = () => window.print()
 </script>
+
 <style scoped>
-.cotizacion-container {
-  max-width: 960px;
-  margin: 2rem auto;
-  font-family: 'Segoe UI', sans-serif;
-  font-size: 15px;
-  color: #111;
-  background: #fff;
-  padding: 2rem;
-  box-shadow: 0 0 12px rgba(0, 0, 0, 0.1);
+.print-layout {
+    max-width: 800px; /* Tamaño carta aprox */
+    margin: 2rem auto;
+    background: white;
+    padding: 3rem;
+    box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    font-family: 'Arial', sans-serif;
+    color: #333;
 }
 
-.encabezado {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 2px solid #eee;
-  padding-bottom: 1rem;
-  margin-bottom: 1.5rem;
+.header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2rem;
 }
 
-.empresa p,
-.datos-cotizacion p {
-  margin: 0.2rem 0;
+.company-info h1 {
+    color: var(--primary);
+    margin: 0 0 0.5rem 0;
+    font-size: 1.5rem;
+}
+.company-info p { margin: 2px 0; font-size: 0.9rem; color: #555; }
+
+.quotation-meta {
+    text-align: right;
+    background: #f9f9f9;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #eee;
 }
 
-.seccion {
-  margin-top: 2rem;
-  font-weight: bold;
-  font-size: 1.1rem;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.5rem;
+.quotation-meta h2 { margin: 0 0 1rem 0; font-size: 1.1rem; color: #444; }
+
+.meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
 }
 
-.cliente p {
-  margin: 0.3rem 0;
+.divider { border: 0; border-top: 2px solid var(--primary); margin: 2rem 0; }
+
+.client-section h3, .details-section h3 {
+    font-size: 1.1rem;
+    background: #eaeaea;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border-left: 4px solid var(--primary);
 }
 
-.tabla-servicios {
-  width: 100%;
-  margin-top: 1.5rem;
-  border-collapse: collapse;
+.client-table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+.client-table th { text-align: left; width: 150px; padding: 5px 0; color: #666; }
+.client-table td { font-weight: bold; }
+
+.items-table { width: 100%; border-collapse: collapse; margin-bottom: 2rem; }
+.items-table th { background: #333; color: white; padding: 10px; text-align: left; }
+.items-table td { border-bottom: 1px solid #ddd; padding: 10px; vertical-align: top; }
+.text-right { text-align: right; }
+
+.specs-summary {
+    display: block;
+    margin-top: 0.5rem;
+    color: #666;
+    font-style: italic;
 }
 
-.tabla-servicios th,
-.tabla-servicios td {
-  border: 1px solid #ccc;
-  padding: 0.75rem;
-  text-align: left;
-  font-size: 14px;
+.totals-section {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 3rem;
 }
 
-.tabla-servicios th {
-  background-color: #f5f5f5;
+.totals-box {
+    width: 300px;
 }
 
-.tabla-servicios td[colspan="2"] {
-  text-align: center;
-  font-style: italic;
-  color: #777;
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #eee;
 }
 
-.totales {
-  margin-top: 2rem;
-  border-top: 2px solid #eee;
-  padding-top: 1rem;
-  font-size: 15px;
+.grand-total {
+    font-weight: bold;
+    font-size: 1.2rem;
+    border-top: 2px solid #333;
+    border-bottom: none;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
 }
 
-.totales p {
-  margin: 0.3rem 0;
+.footer {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #888;
+    margin-top: 4rem;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
 }
 
-.mensajes-finales {
-  margin-top: 2rem;
-  font-size: 0.95rem;
-  color: #444;
+.action-buttons {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 1rem;
 }
 
-.volver-btn {
-  margin-top: 2rem;
-  padding: 10px 20px;
-  background-color: var(--primary, #008366);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
+.btn-print {
+    padding: 12px 24px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-.volver-btn:hover {
-  background-color: #006e53;
-}
 
 @media print {
-  .volver-btn {
-    display: none;
-  }
-
-  .cotizacion-container {
-    box-shadow: none;
-    padding: 0;
-  }
-
-  body {
-    background: white !important;
-    margin: 0 !important;
-  }
+    .print-layout { margin: 0; padding: 0; box-shadow: none; max-width: 100%; }
+    .no-print { display: none !important; }
+    body { background: white; }
 }
 </style>
-

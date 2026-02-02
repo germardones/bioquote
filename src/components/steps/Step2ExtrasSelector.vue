@@ -30,7 +30,9 @@
 
     <div class="acciones">
       <button class="btn-continuar activo" @click="irAlSiguientePaso">Continuar</button>
-      <button class="btn-volver" @click="volverAtras">← Volver atrás</button>
+      <button class="btn-volver" @click="volverAtras">
+        <span class="icon">⬅️</span> Volver
+      </button>
     </div>
   </div>
 </template>
@@ -175,25 +177,11 @@ const irAlSiguientePaso = async () => {
   margin-top: 2rem;
 }
 
-.btn-volver,
 .btn-continuar {
   padding: 12px 20px;
   border-radius: 8px;
   font-weight: bold;
   border: none;
-}
-
-.btn-volver {
-  background-color: var(--primary);
-  color: white;
-  cursor: pointer;
-}
-
-.btn-volver:hover {
-  background-color: #006e53;
-}
-
-.btn-continuar {
   background-color: var(--primary);
   color: white;
   cursor: pointer;

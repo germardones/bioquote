@@ -29,11 +29,9 @@ import { computed } from 'vue'
 const route = useRoute()
 
 const pasos = [
-  { name: 'Paso1Servicios', label: 'Servicios' },
-  { name: 'Paso2Adicionales', label: 'Adicionales' },
-  { name: 'Paso3Horas', label: 'Horas' },
-  { name: 'Paso4Cliente', label: 'Cliente' },
-  { name: 'Paso5Resumen', label: 'Resumen' }
+  { name: 'Paso1Specs', label: 'Espec. Técnicas' },
+  { name: 'Paso2Cliente', label: 'Cliente' },
+  { name: 'Paso3Resumen', label: 'Finanzas' }
 ]
 
 const pasoActual = computed(() => pasos.findIndex(p => p.name === route.name))
@@ -53,6 +51,7 @@ const pasoActual = computed(() => pasos.findIndex(p => p.name === route.name))
   align-items: center;
   gap: 0.5rem;
   overflow-x: auto;
+  padding-bottom: 1rem;
 }
 
 .step {
@@ -62,42 +61,54 @@ const pasoActual = computed(() => pasos.findIndex(p => p.name === route.name))
   flex-grow: 1;
   justify-content: center;
   text-align: center;
+  position: relative;
 }
 
 .circle {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid #ccc;
-  background-color: white;
-  color: #555;
+  border: 2px solid var(--border-color);
+  background-color: var(--bg-surface);
+  color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+  transition: all 0.3s ease;
   flex-shrink: 0;
+  z-index: 2;
 }
 
 .label {
-  margin-left: 0.5rem;
+  margin-left: 0.8rem;
   font-weight: 500;
-  color: #555;
+  color: var(--text-muted);
   white-space: nowrap;
+  transition: color 0.3s;
 }
 
-/* Paso activo */
+/* Status: Active */
 .activo .circle {
-  background-color: var(--primary, #008366);
+  background-color: var(--primary);
   color: white;
-  border-color: var(--primary, #008366);
+  border-color: var(--primary);
+  box-shadow: 0 0 10px rgba(0, 131, 102, 0.3);
 }
 
-/* Pasos completados */
+.activo .label {
+  color: var(--text-main);
+  font-weight: 700;
+}
+
+/* Status: Completed */
 .completado .circle {
-  background-color: #e6fff5;
-  color: var(--primary, #008366);
-  border-color: var(--primary, #008366);
+  background-color: rgba(0, 131, 102, 0.1);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
+.completado .label {
+  color: var(--primary);
+}
 </style>

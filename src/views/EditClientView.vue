@@ -1,29 +1,41 @@
 <template>
-  <div class="container">
+  <div class="edit-client-page">
     <h2>Editar Cliente</h2>
 
-    <div class="card">
-      <label>Nombre:</label>
-      <input v-model="cliente.nombre" type="text" />
-      <p v-if="errores.nombre" class="error">{{ errores.nombre }}</p>
+    <div class="card grid-form">
+      <div class="field">
+        <label>Nombre:</label>
+        <input v-model="cliente.nombre" type="text" />
+        <p v-if="errores.nombre" class="error">{{ errores.nombre }}</p>
+      </div>
 
-      <label>Razón Social:</label>
-      <input v-model="cliente.razonSocial" type="text" />
-      <p v-if="errores.razonSocial" class="error">{{ errores.razonSocial }}</p>
+      <div class="field">
+        <label>Razón Social:</label>
+        <input v-model="cliente.razonSocial" type="text" />
+        <p v-if="errores.razonSocial" class="error">{{ errores.razonSocial }}</p>
+      </div>
 
-      <label>RUT:</label>
-      <input v-model="cliente.rut" type="text" disabled />
+      <div class="field">
+        <label>RUT:</label>
+        <input v-model="cliente.rut" type="text" disabled />
+      </div>
 
-      <label>Dirección:</label>
-      <input v-model="cliente.direccion" type="text" />
+      <div class="field">
+        <label>Correo electrónico:</label>
+        <input v-model="cliente.email" type="email" />
+        <p v-if="errores.email" class="error">{{ errores.email }}</p>
+      </div>
 
-      <label>Correo electrónico:</label>
-      <input v-model="cliente.email" type="email" />
-      <p v-if="errores.email" class="error">{{ errores.email }}</p>
+      <div class="field full-width">
+        <label>Dirección:</label>
+        <input v-model="cliente.direccion" type="text" />
+      </div>
 
-      <label>Contacto (teléfono u otro):</label>
-      <input v-model="cliente.contacto" type="text" />
-      <p v-if="errores.contacto" class="error">{{ errores.contacto }}</p>
+      <div class="field">
+        <label>Contacto (teléfono u otro):</label>
+        <input v-model="cliente.contacto" type="text" />
+        <p v-if="errores.contacto" class="error">{{ errores.contacto }}</p>
+      </div>
     </div>
 
     <div class="btn-group">
@@ -32,9 +44,9 @@
         <span v-else>💾 Guardar Cambios</span>
       </button>
 
-      <button class="btn-volver" @click="router.back()" :disabled="loading">
-        ← Volver atrás
-      </button>
+       <button @click="router.push('/dashboard')" class="btn-volver">
+         <span class="icon">⬅️</span> Volver
+       </button>
     </div>
   </div>
 </template>
@@ -43,7 +55,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
-import { collection, getDocs, updateDoc, query, where } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, query, where, limit } from 'firebase/firestore'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,13 +81,35 @@ const validarTelefono = telefono => {
 }
 
 onMounted(async () => {
-  const cotizaciones = await getDocs(query(collection(db, 'cotizaciones'), where('cliente.rut', '==', rutParam)))
-  if (!cotizaciones.empty) {
-    const data = cotizaciones.docs[0].data().cliente
-    Object.assign(cliente, data)
-  } else {
-    alert('Cliente no encontrado')
-    router.back()
+  try {
+    // Buscar en projects por client_data.rut
+    // Ojo: Si tenemos índice, usamos client_data.rut. Si no, client_name fallback?
+    // Asumiremos que rutParam es el RUT.
+    
+    // Primero intentamos buscar exact match por rut en client_data
+    const qRut = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam), limit(1))
+    let snapshot = await getDocs(qRut)
+    
+    if (snapshot.empty) {
+        // Fallback: buscar por client_name si rutParam parece nombre o si no encontramos por rut
+        // Pero el param se llama rut... asumamos que es rut.
+        
+        // Intento buscar en legacy 'cliente.rut' por si acaso
+        const qLegacy = query(collection(db, 'projects'), where('cliente.rut', '==', rutParam), limit(1))
+        snapshot = await getDocs(qLegacy)
+    }
+
+    if (!snapshot.empty) {
+      const docData = snapshot.docs[0].data()
+      const data = docData.client_data || docData.cliente
+      if (data) Object.assign(cliente, data)
+    } else {
+      console.warn('Cliente no encontrado con RUT:', rutParam)
+      // No redirigimos inmediatamente para permitir debug o reintento manual si fuera necesario
+      // router.back() 
+    }
+  } catch(e) {
+    console.error(e)
   }
 })
 
@@ -96,92 +130,152 @@ const guardarCambios = async () => {
 
   loading.value = true
 
-  const q = query(collection(db, 'cotizaciones'), where('cliente.rut', '==', rutParam))
-  const snapshot = await getDocs(q)
-
-  const updates = snapshot.docs.map(docRef =>
-    updateDoc(docRef.ref, { cliente: { ...cliente } })
-  )
-
-  await Promise.all(updates)
-
-  setTimeout(() => {
-    loading.value = false
-    router.push('/dashboard')
-  }, 1000)
+  try {
+      // Actualizar TODOS los proyectos de este cliente
+      // Nota: Esto es costoso si hay muchos. Idealmente normalize clients collection.
+      
+      const q = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam))
+      const snapshot = await getDocs(q)
+    
+      const updates = snapshot.docs.map(docRef =>
+        updateDoc(docRef.ref, { 
+            client_data: { ...cliente },
+            client_name: cliente.nombre // Mantener sync
+        })
+      )
+    
+      await Promise.all(updates)
+    
+      setTimeout(() => {
+        loading.value = false
+        router.push('/admin') // Volver a Admin Dashboard o Clientes
+      }, 1000)
+  } catch (e) {
+      console.error(e)
+      loading.value = false
+      alert('Error al guardar cambios')
+  }
 }
 </script>
 
 <style scoped>
-.card {
-  background: #f9f9f9;
-  padding: 1.5rem;
-  margin-top: 1.5rem;
-  border: 1px solid #ddd;
-  border-radius: var(--border-radius);
-}
-input {
-  padding: 10px;
-  margin-bottom: 0.5rem;
+.edit-client-page {
+  max-width: 1200px !important;
+  margin: 0 auto;
+  padding: 2rem;
   width: 100%;
-  box-sizing: border-box;
-  border-radius: var(--border-radius);
-  border: 1px solid #ccc;
 }
+
+h2 {
+    margin-bottom: 2rem;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.card {
+  background: var(--bg-surface);
+  padding: 2.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  width: 100% !important;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1.2rem;
+}
+
 label {
-  font-weight: bold;
-  margin-top: 1rem;
-  display: block;
-}
-.error {
-  color: red;
-  font-size: 0.9rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
+  color: var(--text-main);
+  font-size: 0.95rem;
 }
+
+input {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(0, 131, 102, 0.1);
+}
+
+input:disabled {
+  opacity: 0.6;
+  background: var(--bg-app);
+  cursor: not-allowed;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 0.4rem;
+  font-weight: 500;
+}
+
 .btn-group {
-  margin-top: 1.5rem;
+  margin-top: 2.5rem;
   display: flex;
   gap: 1rem;
 }
+
 .guardar-btn {
   background-color: var(--primary);
   color: white;
   border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: bold;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
+  flex: 2;
+  transition: all 0.2s ease;
+  font-size: 1rem;
 }
+
+.guardar-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 131, 102, 0.2);
+}
+
 .guardar-btn:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
+  opacity: 0.5;
 }
+
+.btn-volver {
+    flex: 1;
+    padding: 14px 28px;
+    font-weight: 700;
+    border-radius: 10px;
+}
+
 .spinner {
-  width: 18px;
-  height: 18px;
-  border: 3px solid white;
-  border-top: 3px solid var(--primary);
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid white;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
+
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
-}
-.btn-volver {
-  background-color: #ccc;
-  color: #000;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.btn-volver:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
 }
 </style>

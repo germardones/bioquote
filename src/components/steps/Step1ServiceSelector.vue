@@ -43,7 +43,9 @@
       >
         Continuar
       </button>
-      <button @click="volverAtras" class="btn-volver">← Volver atrás</button>
+      <button @click="volverAtras" class="btn-volver">
+        <span class="icon">⬅️</span> Volver
+      </button>
     </div>
   </div>
 </template>
@@ -185,25 +187,11 @@ const categorias = [
   margin-top: 2rem;
 }
 
-.btn-continuar,
-.btn-volver {
+.btn-continuar {
   padding: 12px 20px;
   border-radius: 8px;
   font-weight: bold;
   border: none;
-}
-
-.btn-volver {
-  background-color: var(--primary);
-  color: white;
-  cursor: pointer;
-}
-
-.btn-volver:hover {
-  background-color: #006e53;
-}
-
-.btn-continuar {
   background-color: #ccc;
   color: #666;
   cursor: not-allowed;

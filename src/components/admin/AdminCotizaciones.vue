@@ -29,7 +29,9 @@
       </tbody>
     </table>
 
-    <button @click="router.back()" class="btn-volver">← Volver</button>
+    <button @click="router.back()" class="btn-volver">
+      <span class="icon">⬅️</span> Volver
+    </button>
   </div>
 </template>
 
@@ -48,13 +50,23 @@ onMounted(async () => {
 
 const cargarCotizaciones = async () => {
   try {
-    const snapshot = await getDocs(collection(db, 'cotizaciones'))
-    cotizaciones.value = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }))
+    const snapshot = await getDocs(collection(db, 'projects'))
+    cotizaciones.value = snapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        id: doc.id,
+        codigo: doc.id.substring(0, 8).toUpperCase(),
+        cliente: { 
+          nombre: data.client_name, 
+          razonSocial: data.client_data?.razonSocial 
+        },
+        total: data.financials?.quoted_price,
+        vendedorNombre: data.sales_rep_name,
+        createdAt: data.created_at
+      }
+    })
   } catch (e) {
-    console.error('Error al cargar cotizaciones:', e)
+    console.error('Error al cargar proyectos:', e)
   }
 }
 
@@ -63,7 +75,7 @@ const eliminarCotizacion = async (id) => {
   if (!confirmar) return
 
   try {
-    await deleteDoc(doc(db, 'cotizaciones', id))
+    await deleteDoc(doc(db, 'projects', id))
     cotizaciones.value = cotizaciones.value.filter(c => c.id !== id)
   } catch (error) {
     console.error('Error al eliminar cotización:', error)
@@ -97,29 +109,17 @@ const formatFecha = (fecha) => {
 }
 
 th, td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   padding: 0.75rem;
   text-align: left;
+  color: var(--text-main);
 }
 
 th {
-  background-color: #f5f5f5;
+  background-color: var(--bg-app);
+  color: var(--text-muted);
 }
 
-.btn-volver {
-  margin-top: 1.5rem;
-  background-color: var(--primary);
-  color: white;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.btn-volver:hover {
-  background-color: #006e53;
-}
 
 .btn-eliminar {
   background-color: transparent;

@@ -2,7 +2,9 @@
   <div class="container">
     <h2>Clientes Registrados</h2>
 
-    <button @click="router.back()" class="btn-volver">← Volver atrás</button>
+     <button @click="router.push('/dashboard')" class="btn-volver">
+       <span class="icon">⬅️</span> Volver
+     </button>
 
     <table>
       <thead>
@@ -43,16 +45,34 @@ const router = useRouter()
 const clientes = ref([])
 
 onMounted(async () => {
-  const querySnapshot = await getDocs(collection(db, 'cotizaciones'))
-  const vistos = new Set()
+  try {
+    const querySnapshot = await getDocs(collection(db, 'projects'))
+    const vistos = new Set()
 
-  querySnapshot.forEach(doc => {
-    const data = doc.data().cliente
-    if (data && !vistos.has(data.rut)) {
-      vistos.add(data.rut)
-      clientes.value.push(data)
-    }
-  })
+    querySnapshot.forEach(doc => {
+      const p = doc.data()
+      // Estructura client_data (nueva) > cliente (legacy fallback)
+      const data = p.client_data || p.cliente
+      
+      // Fallback básico si todo falla
+      if (data && data.rut && !vistos.has(data.rut)) {
+        vistos.add(data.rut)
+        clientes.value.push(data)
+      } else if (!data && p.client_name) {
+        // Caso borde: Solo tenemos nombre
+        if (!vistos.has(p.client_name)) {
+            vistos.add(p.client_name)
+            clientes.value.push({ 
+                nombre: p.client_name, 
+                rut: 'N/D', 
+                razonSocial: 'N/D' 
+            })
+        }
+      }
+    })
+  } catch (error) {
+    console.error("Error al cargar clientes:", error)
+  }
 })
 
 const editarCliente = (cliente) => {
@@ -73,40 +93,30 @@ table {
 
 th, td {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   text-align: left;
+  color: var(--text-main);
 }
 
 th {
-  background-color: #f5f5f5;
+  background-color: var(--bg-app);
+  color: var(--text-muted);
 }
 
-.btn-volver {
-  background-color: var(--primary);
-  color: white;
-  padding: 10px 16px;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-bottom: 1rem;
-}
-
-.btn-volver:hover {
-  background-color: #006e53;
-}
 
 .btn-editar {
-  background-color: #071434;
-  color: white;
+  background-color: var(--bg-header);
+  color: var(--text-on-header);
   padding: 6px 12px;
-  border: none;
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
   font-weight: bold;
+  transition: all 0.2s;
 }
 
 .btn-editar:hover {
-  background-color: #0a1d4c;
+  background-color: var(--primary);
+  border-color: var(--primary);
 }
 </style>

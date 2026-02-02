@@ -13,33 +13,23 @@ const routes = [
     children: [
       {
         path: '',
-        name: 'Paso1Servicios',
-        component: () => import('../components/steps/Step1ServiceSelector.vue')
-      },
-      {
-        path: 'adicionales',
-        name: 'Paso2Adicionales',
-        component: () => import('../components/steps/Step2ExtrasSelector.vue')
-      },
-      {
-        path: 'horas',
-        name: 'Paso3Horas',
-        component: () => import('../components/steps/Step3HoursInput.vue')
+        name: 'Paso1Specs',
+        component: () => import('../components/steps/Step1TechnicalSpecs.vue')
       },
       {
         path: 'cliente',
-        name: 'Paso4Cliente',
+        name: 'Paso2Cliente',
         component: () => import('../components/steps/Step4ClientData.vue')
       },
       {
         path: 'Resumen',
-        name: 'Paso5Resumen',
+        name: 'Paso3Resumen',
         component: () => import('../components/steps/Step5Summary.vue')
       }
     ]
   },
   {
-    path: '/imprimir',
+    path: '/imprimir/:id',
     name: 'PrintView',
     component: () => import('../views/PrintView.vue')
   },
@@ -69,16 +59,75 @@ const routes = [
     component: () => import('../components/admin/AdminClientesView.vue')
   },
   {
+    path: '/usuarios',
+    name: 'Users',
+    component: () => import('../views/WorkersView.vue')
+  },
+  {
     path: '/admin/ventas-servicio',
     name: 'AdminVentasServicio',
     component: () => import('../components/admin/AdminVentasPorServicio.vue')
   },
   {
+    path: '/cotizaciones',
+    name: 'Cotizaciones',
+    component: () => import('../views/QuotationsView.vue')
+  },
+  {
+    path: '/proyectos-en-curso',
+    name: 'ActiveProjects',
+    component: () => import('../views/ActiveProjectsView.vue')
+  },
+  {
+    path: '/proyectos-en-curso/:id/gestion',
+    name: 'ProjectExecution',
+    component: () => import('../views/ProjectExecutionView.vue')
+  },
+  {
+    path: '/proyectos-en-curso/:id/kanban/:itemId',
+    name: 'ItemKanban',
+    component: () => import('../views/ItemKanbanView.vue')
+  },
+  {
+    path: '/proyectos/:id',
+    name: 'ProjectDetail',
+    component: () => import('../views/ProjectDetailView.vue')
+  },
+  {
     path: '/bienvenida',
     name: 'Bienvenida',
     component: () => import('../views/Bienvenida.vue')
+  },
+  {
+    path: '/pagos',
+    name: 'ProjectPayments',
+    component: () => import('../views/ProjectPaymentsView.vue')
+  },
+  {
+    path: '/finanzas/ventas',
+    name: 'FinancialSales',
+    component: () => import('../views/financial/SalesAnalyticsView.vue')
+  },
+  {
+    path: '/finanzas/recaudacion',
+    name: 'FinancialCollection',
+    component: () => import('../views/financial/CollectionManagementView.vue')
+  },
+  {
+    path: '/finanzas/flujo-caja',
+    name: 'FinancialCashFlow',
+    component: () => import('../views/financial/CashFlowView.vue')
+  },
+  {
+    path: '/finanzas/proyeccion',
+    name: 'FinancialProjection',
+    component: () => import('../views/financial/SalesProjectionView.vue')
+  },
+  {
+    path: '/finanzas/costos',
+    name: 'FinancialCosts',
+    component: () => import('../views/financial/OperationalCostsView.vue')
   }
-  
 ]
 
 const router = createRouter({

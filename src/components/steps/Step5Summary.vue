@@ -1,73 +1,105 @@
 <template>
   <div class="container">
     <div class="header">
-      <h2>Resumen de Cotización</h2>
-      <span v-if="store.codigo" class="codigo-cotizacion"
-        >Código: {{ store.codigo }}</span
-      >
+      <h2>Resumen de Proyecto</h2>
+      <span v-if="store.codigo" class="codigo-cotizacion">ID: {{ store.codigo }}</span>
     </div>
 
-    <div v-if="store.servicios.length && store.cliente" class="card resumen">
-      <h3>Cliente</h3>
-      <p>
-        {{ store.cliente.nombre }} | {{ store.cliente.razonSocial }} |
-        {{ store.cliente.rut }}
-      </p>
+    <div v-if="store.cliente" class="card resumen">
+      <h3>Datos del Cliente</h3>
+      <p><strong>Nombre:</strong> {{ store.cliente.nombre }}</p>
+      <p><strong>Razón Social:</strong> {{ store.cliente.razonSocial }}</p>
+      <p><strong>RUT:</strong> {{ store.cliente.rut }}</p>
+      <p><strong>Email:</strong> {{ store.cliente.email }}</p>
 
       <hr />
 
-      <h3>Servicios Cotizados</h3>
-      <div
-        v-for="servicio in store.servicios"
-        :key="servicio.id"
-        class="bloque-servicio"
-      >
-        <strong>{{ servicio.nombre }}</strong>
-        <p>Base: ${{ servicio.cobroBase.toLocaleString() }}</p>
-
-        <div v-if="adicionalesPorServicio(servicio.id).length">
-          <ul v-if="adicionalesPorServicio(servicio.id).length" class="lista-adicionales">
-          <li v-for="a in adicionalesPorServicio(servicio.id)" :key="a.id">
-            <span class="guion">↳</span> {{ a.nombre }}
-            <span class="precio">
-              {{ a.precio ? '$' + a.precio.toLocaleString() : 'A definir' }}
-            </span>
-          </li>
-        </ul>
-
+      <div v-if="store.type === 'custom'">
+        <h3>Ítems de Cotización</h3>
+        <div class="custom-items-summary">
+            <div v-for="item in store.customItems" :key="item.id" class="summary-item">
+                <div class="summary-item-desc">
+                    <strong>{{ item.description }}</strong>
+                    <span v-if="item.pricingMethod === 'fixed'" class="badge-fixed-sm">Fijo</span>
+                    <span v-if="item.observation" class="summary-obs">({{ item.observation }})</span>
+                </div>
+                <div class="summary-item-vals">
+                    <template v-if="item.pricingMethod === 'fixed'">
+                        <span v-if="item.hours > 0" class="mini-hours">{{ item.hours }}h est.</span>
+                        <strong>${{ (item.fixedValue || 0).toLocaleString() }}</strong>
+                    </template>
+                    <template v-else>
+                        {{ item.hours }}h x ${{ item.rate?.toLocaleString() }} = <strong>${{ (item.hours * item.rate).toLocaleString() }}</strong>
+                    </template>
+                </div>
+            </div>
         </div>
-        <p v-else>(Sin adicionales)</p>
-
-        <hr />
       </div>
 
-      <h3>Horas Extra</h3>
-      <p>
-        {{ store.horasExtra }} hora(s) - $
-        {{ (store.horasExtra * totalHorasExtras).toLocaleString() }}
-      </p>
+      <div v-else>
+        <h3>Especificaciones Técnicas</h3>
+        <div class="specs-grid">
+            <div class="spec-item">
+            <span class="label">Entidades:</span>
+            <span class="value">{{ store.specs.entidades }}</span>
+            </div>
+            <div class="spec-item">
+            <span class="label">Roles:</span>
+            <span class="value">{{ store.specs.roles }}</span>
+            </div>
+            <div class="spec-item">
+            <span class="label">Vistas:</span>
+            <span class="value">{{ store.specs.vistas }}</span>
+            </div>
+            <div class="spec-item">
+            <span class="label">APIs:</span>
+            <span class="value">{{ store.specs.apis }}</span>
+            </div>
+            <div class="spec-item">
+            <span class="label">Complejidad:</span>
+            <span class="value">{{ store.specs.complejidad }}x</span>
+            </div>
+        </div>
+      </div>
 
       <hr />
 
-      <h3>Total Final</h3>
-      <p class="total">${{ store.total.toLocaleString() }}</p>
+      <h3>Evaluación Financiera</h3>
+      <div class="financials-grid">
+        <div class="fin-item">
+          <span>Horas Mercado (Est.):</span>
+          <strong>{{ store.financials.horasMercado }} h</strong>
+        </div>
+        <div class="fin-item">
+          <span>Horas Reales (Est.):</span>
+          <strong>{{ store.financials.horasReales }} h</strong>
+        </div>
+        <div class="fin-item highlight">
+          <span>Costo Interno:</span>
+          <strong>${{ store.financials.costoInterno.toLocaleString() }}</strong>
+        </div>
+        <div class="fin-item highlight">
+          <span>Margen Proyectado:</span>
+          <strong>
+            ${{ store.financials.margen.toLocaleString() }}
+            <small>({{ store.financials.margenPorcentaje ?? 0 }}%)</small>
+          </strong>
+        </div>
+      </div>
+
+      <div class="total-section">
+        <h3>Precio Sugerido (Venta)</h3>
+        <p class="total-price">${{ store.financials.precioSugerido.toLocaleString() }}</p>
+        <p class="disclaimer">+ IVA</p>
+      </div>
+
     </div>
 
-    <p v-else>Cargando datos de cotización...</p>
-
     <div class="btn-group">
-      <button
-        class="guardar-btn"
-        @click="guardarCotizacion"
-        :disabled="cargando"
-      >
-        💾 Guardar Cotización
+      <button class="guardar-btn" @click="guardarProyecto" :disabled="cargando">
+        💾 Guardar Proyecto
       </button>
-
-      <button @click="router.push('/imprimir')" :disabled="cargando">
-        🖨️ Imprimir Cotización
-      </button>
-
+      
       <button class="volver-btn" @click="volverADashboard" :disabled="cargando">
         🔙 Volver al Dashboard
       </button>
@@ -83,97 +115,77 @@
 import { useQuotationStore } from "../../store/quotation";
 import { useRouter } from "vue-router";
 import { db, auth } from "../../firebase/firebaseConfig";
-import {
-  collection,
-  addDoc,
-  serverTimestamp,
-  doc,
-  getDoc,
-  setDoc,
-} from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { ref } from "vue";
 
 const store = useQuotationStore();
 const router = useRouter();
 const cargando = ref(false);
 
-const empresa = {
-  nombre: "BioBio Code",
-  rut: "76.123.456-7",
-  direccion: "Barros Arana 492, Of. 78, Concepción, Chile",
-  telefono: "+56 9 3104 7688",
-  email: "contacto@biobiocode.cl",
-};
-
-const adicionalesPorServicio = (servicioId) => {
-  return store.adicionales.filter((a) => a.servicioId === servicioId);
-};
-
-const totalHorasExtras = store.servicios.reduce((acc, s) => {
-  return acc + (s.cobroAdicional || 0);
-}, 0);
-
-const guardarCotizacion = async () => {
+const guardarProyecto = async () => {
   try {
     const user = auth.currentUser;
     if (!user) return alert("Usuario no autenticado.");
 
     cargando.value = true;
 
-    const contadorRef = doc(db, "contador", "cotizaciones");
-    const contadorSnap = await getDoc(contadorRef);
+    // Estructura basada en proyecto_contexto.md
+    const projectData = {
+      client_name: store.cliente.nombre, // Simplificado, idealmente un ID de cliente
+      name: `Proyecto para ${store.cliente.nombre}`, // Nombre por defecto
+      status: "Draft",
+      owner_uid: user.uid,
+      sales_rep_name: user.displayName || user.email,
+      
+      // Datos del cliente completos (desnormalizados por ahora)
+      client_data: {
+        ...store.cliente
+      },
 
-    let ultimoCorrelativo = 0;
-    if (contadorSnap.exists()) {
-      ultimoCorrelativo = contadorSnap.data().ultimoCorrelativo || 0;
-    }
+      // Specs
+      specs: {
+        type: store.type,
+        custom_items: store.customItems || [],
+        entity_count: store.specs.entidades,
+        role_count: store.specs.roles,
+        view_count: store.specs.vistas,
+        api_count: store.specs.apis,
+        complexity: store.specs.complejidad
+      },
 
-    const nuevoCorrelativo = ultimoCorrelativo + 1;
-    const codigoCotizacion = `COT-${String(nuevoCorrelativo).padStart(3, "0")}`;
+      // Financials
+      financials: {
+        estimated_hours_market: store.financials.horasMercado,
+        estimated_hours_real: store.financials.horasReales,
+        quoted_price: store.financials.precioSugerido,
+        internal_cost: store.financials.costoInterno,
+        projected_margin: store.financials.margen
+      },
 
-    const cotizacion = {
-      codigo: codigoCotizacion,
-      vendedorUID: user.uid,
-      vendedorNombre: user.displayName?.trim() || user.email || user.uid,
-      vendedorEmail: user.email,
-      cliente: store.cliente,
-      servicios: store.servicios.map(s => ({
-        ...s,
-        categoria:
-          [1, 2, 3].includes(s.id)
-            ? 'Desarrollo Web'
-            : [4, 5, 6].includes(s.id)
-            ? 'Automatización y Dashboards'
-            : [7, 8, 9].includes(s.id)
-            ? 'I+D y Diagnóstico'
-            : 'Sin categoría'
-      })),
-
-      adicionales: store.adicionales,
-      horasExtra: store.horasExtra,
-      total: store.total,
-      createdAt: serverTimestamp(),
-      empresa,
+      created_at: serverTimestamp(),
+      updated_at: serverTimestamp()
     };
 
-    await addDoc(collection(db, "cotizaciones"), cotizacion);
-    await setDoc(contadorRef, { ultimoCorrelativo: nuevoCorrelativo });
+    const docRef = await addDoc(collection(db, "projects"), projectData);
+    
+    store.codigo = docRef.id; // Usamos el ID del documento como código temporal
+    console.log("Proyecto guardado con ID: ", docRef.id);
+    
+    alert("Proyecto guardado exitosamente.");
+    // Opcional: Redirigir o limpiar
+    // store.reset();
+    // router.push("/dashboard");
 
-    store.codigo = codigoCotizacion;
-    store.empresa = empresa;
-    store.vendedorNombre = user.displayName;
-    store.vendedorEmail = user.email;
-
-    localStorage.setItem("ultimaCotizacion", JSON.stringify(cotizacion));
   } catch (err) {
-    console.error("Error al guardar cotización", err);
+    console.error("Error al guardar proyecto", err);
+    alert("Error al guardar el proyecto.");
   } finally {
     cargando.value = false;
   }
 };
 
 const volverADashboard = () => {
-  if (confirm("¿Estás seguro de salir sin guardar la cotización?")) {
+  if (confirm("¿Estás seguro de salir? Se perderán los datos no guardados.")) {
     store.reset();
     router.push("/dashboard");
   }
@@ -182,125 +194,195 @@ const volverADashboard = () => {
 
 <style scoped>
 .container {
-  position: relative;
+  max-width: 800px;
+  margin: 0 auto;
 }
+
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
 }
+
 .codigo-cotizacion {
-  font-size: 1rem;
   font-weight: bold;
-  color: var(--primary);
+  color: var(--text-muted);
 }
+
 .card.resumen {
-  background-color: #f9f9f9;
-  border: 1px solid #ddd;
-  padding: 1.5rem;
-  border-radius: var(--border-radius);
-  margin-top: 1.5rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 2.5rem;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
 }
-.card.resumen h3 {
-  margin-bottom: 0.5rem;
-  color: var(--dark);
+
+h3 {
+  color: var(--primary);
+  margin-top: 0;
+  font-size: 1.1rem;
 }
-.bloque-servicio {
-  margin-bottom: 1rem;
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
 }
-ul {
-  list-style: none;
-  padding-left: 0;
-  margin-bottom: 0.5rem;
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg-app);
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
 }
-li {
-  padding: 4px 0;
-  border-bottom: 1px solid #eee;
+
+.spec-item .label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 4px;
 }
-.total {
-  font-size: 1.5rem;
-  font-weight: bold;
+
+.spec-item .value {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.financials-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.fin-item {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.75rem;
+  color: var(--text-main);
+}
+
+.fin-item span {
+    color: var(--text-muted);
+}
+
+.fin-item strong {
+    color: var(--text-main);
+}
+
+.fin-item.highlight strong {
   color: var(--primary);
 }
+
+.total-section {
+  text-align: right;
+  background: rgba(0, 131, 102, 0.1);
+  padding: 2rem;
+  border-radius: 16px;
+  margin-top: 2.5rem;
+  border: 1px solid rgba(0, 131, 102, 0.2);
+}
+
+.total-price {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--primary);
+  margin: 0;
+}
+
+.disclaimer {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
 .btn-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 1.25rem;
+  margin-top: 2.5rem;
 }
-button {
-  padding: 12px 18px;
+
+.guardar-btn, .volver-btn {
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-weight: 700;
   border: none;
-  border-radius: var(--border-radius);
-  font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.2s ease;
-  font-weight: bold;
+  flex: 1;
+  transition: all 0.2s;
 }
+
 .guardar-btn {
   background-color: var(--primary);
   color: white;
 }
-.guardar-btn:hover {
-  background-color: #006e53;
+
+.guardar-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
 }
+
 .volver-btn {
-  background-color: #ccc;
-  color: #000;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
 }
+
 .volver-btn:hover {
-  background-color: #bbb;
+    background-color: var(--bg-surface);
 }
+
 .overlay-carga {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
   justify-content: center;
-  z-index: 999;
+  align-items: center;
+  z-index: 1000;
 }
+
 .spinner {
-  width: 50px;
-  height: 50px;
-  border: 6px solid #ddd;
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--bg-surface);
   border-top-color: var(--primary);
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-.lista-adicionales {
-  margin-top: 0.5rem;
-  margin-left: 1rem;
-  padding-left: 1rem;
-  border-left: 2px solid #ddd;
+  animation: spin 1s infinite linear;
 }
 
-.lista-adicionales li {
-  padding: 4px 0;
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.95rem;
-  color: #444;
+.badge-fixed-sm {
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-left: 0.6rem;
+    vertical-align: middle;
 }
 
-.lista-adicionales .guion {
-  margin-right: 0.5rem;
-  color: var(--primary);
-  font-weight: bold;
-}
-
-.lista-adicionales .precio {
-  color: #222;
-  font-weight: bold;
+.mini-hours {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-right: 0.5rem;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 </style>

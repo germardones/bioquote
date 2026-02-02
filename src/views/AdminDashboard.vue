@@ -8,35 +8,47 @@
 
     <div class="admin-grid">
       <div class="card highlight clickeable" @click="router.push('/admin/cotizaciones')">
-        <h3>Total Cotizaciones</h3>
-        <p>{{ totalCotizaciones }}</p>
+        <div class="card-icon"><i class="fa-solid fa-folder-open"></i></div>
+        <div>
+          <h3>Total Cotizaciones</h3>
+        </div>
       </div>
 
       <div class="card clickeable" @click="router.push('/admin/clientes')">
-        <h3>Clientes Únicos</h3>
-        <p>{{ totalClientes }}</p>
+        <div class="card-icon purple"><i class="fa-solid fa-users"></i></div>
+        <div>
+          <h3>Clientes Únicos</h3>
+        </div>
       </div>
 
       <div class="card clickeable muted" @click="router.push('/admin/ventas-servicio')">
-        <h3>Ventas Posibles</h3>
-        <p>$ {{ formatearPesos(totalVentas) }}</p>
+        <div class="card-icon blue"><i class="fa-solid fa-chart-line"></i></div>
+        <div>
+          <h3>Ventas Posibles</h3>
+        </div>
       </div>
 
       <div class="card vendedores wide-2">
-  <h3>Top Vendedores</h3>
-  <ul>
-    <li v-for="(v, i) in topVendedores" :key="i">
-      <strong>#{{ i + 1 }}</strong>
-      {{ v.nombre || v.vendedorNombre || v.uid || 'Desconocido' }} —
-      {{ v.total || 0 }} cotizaciones —
-      ${{ formatearPesos(v.ventas) }}
-    </li>
-  </ul>
-</div>
+        <div class="card-header">
+           <i class="fa-solid fa-trophy icon-accent"></i>
+           <h3>Top Vendedores</h3>
+        </div>
+        <ul>
+          <li v-for="(v, i) in topVendedores" :key="i">
+            <strong>#{{ i + 1 }}</strong>
+            {{ v.nombre || v.vendedorNombre || v.uid || 'Desconocido' }} —
+            {{ v.total || 0 }} cotizaciones —
+            ${{ formatearPesos(v.ventas) }}
+          </li>
+        </ul>
+      </div>
 
 
       <div class="card wide">
-        <h3>Últimas Cotizaciones</h3>
+        <div class="card-header">
+           <i class="fa-solid fa-clock-rotate-left icon-accent"></i>
+           <h3>Últimas Cotizaciones</h3>
+        </div>
         <ul>
           <li v-for="c in cotizacionesRecientes" :key="c.codigo">
             {{ c.codigo || 'Sin código' }} -
@@ -125,25 +137,70 @@ onMounted(async () => {
 }
 
 .card {
-  background: white;
-  border-radius: 1rem;
+  background: var(--bg-surface);
+  border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-  border-left: 5px solid var(--primary);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  border: 1px solid var(--border-color);
+  transition: all 0.25s ease;
 }
 
 .card.clickeable {
   cursor: pointer;
 }
 
+.card.clickeable:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+}
+
+.card-icon {
+    font-size: 1.4rem;
+    background: var(--bg-app);
+    color: var(--text-muted);
+    width: 48px; height: 48px;
+    display: flex;
+    align-items: center; justify-content: center;
+    border-radius: 10px;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.card-header h3 {
+    margin: 0;
+}
+
+.icon-accent {
+    color: var(--primary);
+    font-size: 1.2rem;
+}
+
 .card h3 {
-  margin: 0 0 0.5rem;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.card p {
+  margin: 0;
+  color: var(--text-main);
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.card.wide, .card.vendedores {
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 .card.wide {
@@ -160,26 +217,38 @@ onMounted(async () => {
   }
 }
 
-.card.vendedores ul,
-.card.wide ul {
+.card ul {
   padding: 0;
   margin: 0;
   list-style: none;
+  width: 100%;
 }
 
 .card ul li {
-  padding: 0.4rem 0;
-  border-bottom: 1px solid #eee;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+  color: var(--text-muted);
 }
 
+.card ul li:last-child {
+    border-bottom: none;
+}
+
+.card-icon.purple { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
+.card-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+
 .highlight {
-  background-color: #e8f9f3;
-  border-left-color: var(--primary);
+  background: var(--bg-surface);
+  border-left: 4px solid var(--primary);
+}
+.highlight .card-icon {
+    background: rgba(34, 197, 94, 0.1);
+    color: #166534;
 }
 
 .muted {
-  background-color: #f5f5f5;
-  border-left-color: #ccc;
+  background: var(--bg-app);
 }
 
 .btn-vendedor {
@@ -191,9 +260,11 @@ onMounted(async () => {
   font-weight: bold;
   cursor: pointer;
   margin-bottom: 1rem;
+  transition: all 0.2s;
 }
 
 .btn-vendedor:hover {
   background-color: #006e53;
+  transform: scale(1.02);
 }
 </style>
