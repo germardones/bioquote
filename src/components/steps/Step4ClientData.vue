@@ -198,13 +198,6 @@ label {
   transform: translateY(-1px);
 }
 
-.error {
-  color: #ef4444;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
-}
-
 .rut-input-group {
   position: relative;
 }

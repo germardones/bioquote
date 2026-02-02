@@ -79,6 +79,17 @@ footer p {
   max-width: 1200px;
   margin: 0 auto;
   padding: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
 }
 
 /* Shared Components */
@@ -146,6 +157,12 @@ label {
   border-radius: 12px;
   box-shadow: var(--shadow);
   transition: background-color 0.3s, border-color 0.3s;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 1rem;
+  }
 }
 
 .btn-volver {

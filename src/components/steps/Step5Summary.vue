@@ -385,4 +385,33 @@ h3 {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .card.resumen {
+    padding: 1.5rem 1rem;
+  }
+
+  .financials-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .btn-group {
+    flex-direction: column;
+  }
+  
+  .specs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .total-price {
+    font-size: 2rem;
+  }
+}
 </style>

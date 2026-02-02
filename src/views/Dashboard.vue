@@ -133,7 +133,7 @@ onMounted(async () => {
 
 <style scoped>
 .container { width: 100%; max-width: 1400px; margin: 0 auto; padding: 2rem; }
-.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+.header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 1rem; }
 .admin-switch { background-color: #333; color: white; padding: 8px 15px; border-radius: 6px; border: none; cursor: pointer; }
 .dashboard-section { margin-bottom: 3rem; }
 .section-title { font-size: 1.4rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--border-color); display: flex; align-items: center; gap: 12px; }
@@ -161,4 +161,12 @@ onMounted(async () => {
 .card:hover .card-icon { transform: scale(1.1); }
 .card h3 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-main); }
 .card p { margin: 0; color: var(--text-muted); font-size: 0.85rem; font-weight: 500; }
+
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  .grid { grid-template-columns: 1fr; gap: 1rem; }
+  .card { padding: 1.2rem; }
+  .section-title { font-size: 1.25rem; }
+  .header-row { align-items: flex-start; }
+}
 </style>

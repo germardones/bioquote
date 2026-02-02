@@ -147,6 +147,53 @@ const router = useRouter()
   button:hover {
     background-color: var(--primary-hover);
   }
+  
+  @media (max-width: 640px) {
+    .container {
+      padding: 1rem;
+    }
 
+    table, thead, tbody, th, td, tr {
+      display: block;
+      width: 100%;
+    }
+
+    thead {
+      display: none;
+    }
+
+    tr {
+      background: var(--bg-surface);
+      margin-bottom: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: var(--shadow);
+    }
+
+    td {
+      border: none;
+      padding: 0.5rem 0;
+      position: relative;
+    }
+
+    /* Add labels for context */
+    td:nth-of-type(1)::before { content: "Nombre"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+    td:nth-of-type(2)::before { content: "Razón Social"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+    td:nth-of-type(3)::before { content: "RUT"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+    td:nth-of-type(4)::before { content: "Correo"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+    td:nth-of-type(5)::before { content: "Contacto"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+    td:nth-of-type(6)::before { content: "Dirección"; display: block; font-weight: bold; color: var(--text-muted); font-size: 0.8rem; }
+
+    td:last-child {
+      text-align: center;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    button {
+      width: 100%;
+    }
+  }
   </style>
   

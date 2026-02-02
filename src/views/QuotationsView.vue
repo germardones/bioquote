@@ -12,42 +12,44 @@
     <div v-if="loading" class="loading">Cargando cotizaciones...</div>
 
     <div v-else-if="projects.length > 0">
-      <table class="projects-table">
-        <thead>
-          <tr>
-            <th>Código</th>
-            <th>Cliente</th>
-            <th>Proyecto</th>
-            <th>Fecha</th>
-            <th>Monto Base</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="p in projects" :key="p.id">
-            <td><span class="badge-code">{{ p.codigo }}</span></td>
-            <td>{{ p.client_name }}</td>
-            <td>{{ p.name }}</td>
-            <td>{{ formatFecha(p.created_at) }}</td>
-            <td class="monto">${{ (p.financials?.quoted_price || 0).toLocaleString() }}</td>
-            <td>
-              <span class="badge-status" :class="getStatusClass(p.status)">{{ p.status }}</span>
-            </td>
-            <td>
-              <button class="btn-action" title="Ver detalle" @click="verDetalle(p)">👁️</button>
-              <button 
-                v-if="p.status === 'Draft'" 
-                class="btn-action btn-accept" 
-                title="Aceptar Cotización" 
-                @click="aceptarCotizacion(p)"
-              >
-                ✅
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-responsive">
+        <table class="projects-table">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Cliente</th>
+              <th>Proyecto</th>
+              <th>Fecha</th>
+              <th>Monto Base</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="p in projects" :key="p.id">
+              <td><span class="badge-code">{{ p.codigo }}</span></td>
+              <td>{{ p.client_name }}</td>
+              <td>{{ p.name }}</td>
+              <td>{{ formatFecha(p.created_at) }}</td>
+              <td class="monto">${{ (p.financials?.quoted_price || 0).toLocaleString() }}</td>
+              <td>
+                <span class="badge-status" :class="getStatusClass(p.status)">{{ p.status }}</span>
+              </td>
+              <td>
+                <button class="btn-action" title="Ver detalle" @click="verDetalle(p)">👁️</button>
+                <button 
+                  v-if="p.status === 'Draft'" 
+                  class="btn-action btn-accept" 
+                  title="Aceptar Cotización" 
+                  @click="aceptarCotizacion(p)"
+                >
+                  ✅
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <div v-else class="empty-state">
@@ -157,14 +159,22 @@ const getStatusClass = (status) => {
   margin-bottom: 2rem;
 }
 
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
 .projects-table {
   width: 100%;
   border-collapse: collapse;
   background: var(--bg-surface);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: var(--shadow);
-  border: 1px solid var(--border-color);
+  /* border-radius removed here as it's on wrapper for proper scroll */
+  /* border: 1px solid var(--border-color); */
+  min-width: 800px; /* Force scroll on small screens */
 }
 
 th, td {
@@ -182,6 +192,7 @@ th {
   text-transform: uppercase;
   font-size: 0.8rem;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .badge-code {
@@ -209,6 +220,7 @@ th {
   color: var(--text-muted);
   border: 1px solid var(--border-color);
   display: inline-block;
+  white-space: nowrap;
 }
 
 .badge-status.draft { 
@@ -271,5 +283,11 @@ th {
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
   color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  .header { flex-direction: column; align-items: stretch; gap: 1rem; }
+  .btn-volver { width: 100%; }
 }
 </style>

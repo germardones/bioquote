@@ -333,15 +333,29 @@ const goBack = () => {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
-    font-weight: bold;
-    color: var(--text-main);
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid var(--border-color);
+    font-weight: 800;
+    padding: 10px 12px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
 }
 
-.column-header.status-todo { border-color: #fbaceb; }
-.column-header.status-progress { border-color: #60a5fa; }
-.column-header.status-done { border-color: #4ade80; }
+.column-header.status-todo { 
+    background: rgba(236, 72, 153, 0.1); 
+    color: #be185d; 
+    border-left: 4px solid #ec4899;
+}
+.column-header.status-progress { 
+    background: rgba(59, 130, 246, 0.1); 
+    color: #1d4ed8; 
+    border-left: 4px solid #3b82f6;
+}
+.column-header.status-done { 
+    background: rgba(34, 197, 94, 0.1); 
+    color: #15803d; 
+    border-left: 4px solid #22c55e;
+}
 
 .count {
     background: var(--bg-surface);
@@ -389,11 +403,12 @@ const goBack = () => {
 }
 
 .worker-badge {
-    background: rgba(14, 165, 233, 0.1);
-    color: #0ea5e9;
+    background: rgba(14, 165, 233, 0.2); /* Slightly darker bg */
+    color: #0369a1; /* Darker blue text */
     font-size: 0.75rem;
     padding: 2px 6px;
     border-radius: 4px;
+    font-weight: 600;
 }
 
 .task-actions {
@@ -485,5 +500,33 @@ const goBack = () => {
     background: var(--bg-surface);
     border-color: var(--primary);
     color: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .kanban-board {
+    grid-template-columns: 1fr; /* Stack columns vertically */
+    gap: 1rem;
+  }
+  
+  .container {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .modal {
+    width: 90%; /* Responsive modal width */
+    max-width: 400px;
+  }
 }
 </style>

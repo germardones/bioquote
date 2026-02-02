@@ -91,4 +91,65 @@ onMounted(() => {
 .bg-red { background: #fee2e2; color: #991b1b; }
 .code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
 .badge { padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .summary-card {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .details-table, .details-table thead, .details-table tbody, .details-table th, .details-table td, .details-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .details-table thead { display: none; }
+
+  .details-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--bg-surface);
+  }
+
+  .details-table td {
+    border: none;
+    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  
+  .details-table td:first-child {
+      display: block;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
+  }
+
+  .details-table td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    text-align: left;
+  }
+  
+  .details-table td:first-child:before { display: none; }
+}
 </style>

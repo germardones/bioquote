@@ -255,4 +255,44 @@ const registerPayment = async () => {
 .btn-save { background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 .btn-cancel { background: var(--bg-app); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-muted); }
 .code { font-family: monospace; background: var(--bg-app); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); }
+
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .summary-card {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+
+  .projects-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-header {
+      flex-direction: column;
+      gap: 1rem;
+  }
+  
+  .total-badge {
+      text-align: left;
+      align-self: flex-start;
+  }
+  
+  .modal {
+      width: 95%;
+      padding: 1.5rem;
+  }
+  
+  .form-row {
+      flex-direction: column;
+      gap: 0;
+  }
+}
 </style>

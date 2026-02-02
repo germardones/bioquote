@@ -40,15 +40,15 @@
                   <strong>{{ w.name }}</strong>
                 </div>
               </td>
-              <td>{{ w.role }}</td>
-              <td>{{ w.email }}</td>
-              <td class="text-right">{{ formatCurrency(w.hourlyRate) }}</td>
-              <td>
+              <td data-label="Rol">{{ w.role }}</td>
+              <td data-label="Email">{{ w.email }}</td>
+              <td class="text-right" data-label="Costo Hora">{{ formatCurrency(w.hourlyRate) }}</td>
+              <td data-label="Estado">
                   <span class="badge" :class="w.active ? 'active' : 'inactive'">
                       {{ w.active ? 'Activo' : 'Inactivo' }}
                   </span>
               </td>
-              <td class="text-center">
+              <td class="text-center" data-label="Acciones">
                 <button class="btn-icon" title="Editar" @click="editWorker(w)">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
@@ -431,4 +431,89 @@ const toggleStatus = async (worker) => {
 }
 
 .loading-state i, .empty-msg i { font-size: 2rem; margin-bottom: 1rem; display: block; }
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .title-group h2 {
+    font-size: 1.5rem;
+  }
+
+  .action-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .btn-create, .btn-volver {
+    flex: 1;
+    justify-content: center;
+  }
+
+  /* Table to Card Transformation */
+  .workers-table, .workers-table tbody, .workers-table tr, .workers-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .workers-table thead {
+    display: none;
+  }
+
+  .workers-table tr {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+  }
+  
+  .workers-table tr:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+
+  .workers-table td {
+    padding: 0.5rem 1rem;
+    border-bottom: none;
+    text-align: right; /* Default align right for values */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .workers-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-transform: uppercase;
+  }
+
+  /* First cell (Name) specific styling */
+  .workers-table td:first-child {
+    justify-content: flex-start;
+    padding-top: 0;
+  }
+  
+  .workers-table td:first-child::before {
+    display: none;
+  }
+
+  .text-right, .text-center {
+    text-align: inherit;
+  }
+  
+  /* Modal responsive */
+  .modal-content {
+    width: 95%;
+    margin: 0 1rem;
+  }
+}
 </style>

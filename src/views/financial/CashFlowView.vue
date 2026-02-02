@@ -77,12 +77,12 @@
                    </tr>
                    <tr v-for="exp in fixedExpensesList" :key="exp.id">
                        <td>{{ exp.name }}</td>
-                       <td>
+                       <td data-label="Frecuencia">
                            <span class="badge">{{ exp.frequency }}</span>
                            <small v-if="exp.frequency === 'Unico' && exp.date" class="date-badge">{{ formatDate(exp.date) }}</small>
                        </td>
-                       <td class="text-right">{{ formatCurrency(exp.amount) }}</td>
-                       <td class="text-right">
+                       <td class="text-right" data-label="Monto">{{ formatCurrency(exp.amount) }}</td>
+                       <td class="text-right" data-label="Acción">
                            <button @click="deleteFixedExpense(exp.id)" class="btn-delete">🗑️</button>
                        </td>
                    </tr>
@@ -203,4 +203,72 @@ button:disabled { background: var(--text-muted); opacity: 0.5; }
 .text-right { text-align: right; }
 .btn-delete { background: none; border: none; color: var(--text-muted); font-size: 1.2rem; cursor: pointer; }
 .badge { background: rgba(59, 130, 246, 0.1); color: #3b82f6; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; }
+
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  /* Stack form rows */
+  .add-expense-form {
+      gap: 1rem;
+  }
+
+  .form-row {
+      flex-direction: column;
+      align-items: stretch;
+  }
+
+  .input-amount, .input-freq, .input-date {
+      width: 100%;
+      text-align: left;
+  }
+
+  /* Table to Cards */
+  .details-table, .details-table thead, .details-table tbody, .details-table th, .details-table td, .details-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .details-table thead { display: none; }
+
+  .details-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--bg-surface);
+  }
+
+  .details-table td {
+    border: none;
+    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  
+  .details-table td:first-child {
+      justify-content: flex-start;
+      font-weight: bold;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
+  }
+
+  .details-table td:before {
+    content: attr(data-label); /* Requires adding data-label to template */
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+  }
+  
+  .details-table td:first-child:before { display: none; }
+}
 </style>

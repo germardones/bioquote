@@ -35,11 +35,11 @@
                     <tbody>
                     <tr v-for="cost in detailData.costs" :key="cost.id">
                         <td>{{ cost.projectName }}</td>
-                        <td>{{ cost.itemName }}</td>
-                        <td>{{ cost.workerName }}</td>
-                        <td class="text-right">{{ cost.hours }}h</td>
-                        <td class="text-right">{{ formatCurrency(cost.rate) }}</td>
-                        <td class="text-right">{{ formatCurrency(cost.total) }}</td>
+                        <td data-label="Item">{{ cost.itemName }}</td>
+                        <td data-label="Usuario">{{ cost.workerName }}</td>
+                        <td class="text-right" data-label="Horas">{{ cost.hours }}h</td>
+                        <td class="text-right" data-label="Tarifa">{{ formatCurrency(cost.rate) }}</td>
+                        <td class="text-right" data-label="Costo Total">{{ formatCurrency(cost.total) }}</td>
                     </tr>
                 </tbody>
             </table>
@@ -74,4 +74,64 @@ onMounted(() => {
 .details-table th { background: var(--bg-app); color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; padding: 12px; text-align: left; }
 .details-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
 .text-right { text-align: right; }
+
+@media (max-width: 640px) {
+  .container { padding: 1rem; }
+  
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .summary-card {
+    flex-direction: column;
+    text-align: center;
+    align-items: center;
+  }
+  
+  /* Table to Cards */
+  .details-table, .details-table thead, .details-table tbody, .details-table th, .details-table td, .details-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .details-table thead { display: none; }
+
+  .details-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--bg-surface);
+  }
+
+  .details-table td {
+    border: none;
+    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+  }
+  
+  .details-table td:first-child {
+      display: block;
+      text-align: left;
+      font-weight: bold;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+      margin-bottom: 0.5rem;
+  }
+
+  .details-table td:before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+  }
+  
+  .details-table td:first-child:before { display: none; }
+}
 </style>

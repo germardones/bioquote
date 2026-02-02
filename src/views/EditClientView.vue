@@ -278,4 +278,13 @@ input:disabled {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+@media (max-width: 640px) {
+  .edit-client-page { padding: 1rem; }
+  .card { padding: 1.5rem; }
+  h2 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+  .btn-group { flex-direction: column; gap: 1rem; }
+  .guardar-btn { width: 100%; order: -1; }
+  .btn-volver { width: 100%; }
+}
 </style>

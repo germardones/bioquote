@@ -365,6 +365,7 @@ const volverAtras = () => {
   background: transparent;
   font-weight: 700;
   color: var(--text-main);
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 .counter input::-webkit-outer-spin-button,
@@ -485,5 +486,27 @@ const volverAtras = () => {
     font-size: 0.75rem;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+}
+
+.field.grow { flex: 1; }
+.field.short { width: 100px; }
+
+@media (max-width: 640px) {
+  .container { padding: 0.5rem; }
+  .grid-inputs { grid-template-columns: 1fr; }
+  .input-card.full-width { grid-column: span 1; }
+  .form-row { flex-direction: column; }
+  .field.short { width: 100%; }
 }
 </style>
