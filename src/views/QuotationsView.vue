@@ -35,15 +35,23 @@
               <td>
                 <span class="badge-status" :class="getStatusClass(p.status)">{{ p.status }}</span>
               </td>
-              <td>
-                <button class="btn-action" title="Ver detalle" @click="verDetalle(p)">👁️</button>
+              <td class="actions-cell">
+                <button class="btn-icon-danger" title="Eliminar" @click="eliminarCotizacion(p)">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button v-if="p.status === 'Draft'" class="btn-icon-edit" title="Editar" @click="editarCotizacion(p)">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn-icon-view" title="Ver detalle" @click="verDetalle(p)">
+                    <i class="fa-solid fa-eye"></i>
+                </button>
                 <button 
                   v-if="p.status === 'Draft'" 
-                  class="btn-action btn-accept" 
+                  class="btn-icon-success" 
                   title="Aceptar Cotización" 
                   @click="aceptarCotizacion(p)"
                 >
-                  ✅
+                  <i class="fa-solid fa-check"></i>
                 </button>
               </td>
             </tr>
@@ -63,7 +71,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase/firebaseConfig'
-import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore'
+import { collection, query, where, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore'
 
 const router = useRouter()
 const projects = ref([])
@@ -106,6 +114,27 @@ const fetchProjects = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const eliminarCotizacion = async (project) => {
+  if (!confirm(`¿Estás seguro de ELIMINAR la cotización "${project.codigo}"? Esta acción no se puede deshacer.`)) return
+
+  try {
+    await deleteDoc(doc(db, 'projects', project.id))
+    projects.value = projects.value.filter(p => p.id !== project.id)
+  } catch (error) {
+    console.error('Error eliminando cotización:', error)
+    alert('Error al eliminar la cotización.')
+  }
+}
+
+const editarCotizacion = (project) => {
+    // Redirigir a una vista de edición o al wizard con los datos cargados.
+    // Por ahora, asumiremos que existe una ruta de edición o reutilizamos el wizard.
+    // Si no existe ruta específica, alertar o redirigir al wizard (ajustar según router).
+    // router.push(`/cotizar?edit=${project.id}`)
+    // O si es "Editar Cliente" como vimos antes:
+    router.push(`/editar-cliente/${project.id}`) 
 }
 
 const aceptarCotizacion = async (project) => {
@@ -244,35 +273,61 @@ th {
     border-color: rgba(153, 27, 27, 0.3);
 }
 
-.btn-action {
-  background: var(--bg-app);
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  font-size: 1.1rem;
-  padding: 6px;
-  border-radius: 8px;
-  margin-right: 0.5rem;
-  transition: all 0.2s;
-  color: var(--text-main);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.actions-cell {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
-.btn-action:hover {
-  background: var(--bg-surface);
-  transform: translateY(-1px);
-  border-color: var(--primary);
+/* Base icon button style */
+.btn-icon-danger, .btn-icon-edit, .btn-icon-view, .btn-icon-success {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    background: white;
 }
 
-.btn-accept {
-  background-color: rgba(0, 131, 102, 0.1);
-  border: 1px solid rgba(0, 131, 102, 0.3);
+.btn-icon-danger {
+    color: #ef4444;
+    border-color: #fca5a5;
+}
+.btn-icon-danger:hover {
+    background-color: #fef2f2;
+    transform: scale(1.05);
 }
 
-.btn-accept:hover {
-  background-color: var(--primary);
-  color: white;
+.btn-icon-edit {
+    color: #f59e0b;
+    border-color: #fcd34d;
+}
+.btn-icon-edit:hover {
+    background-color: #fffbeb;
+    transform: scale(1.05);
+}
+
+.btn-icon-view {
+    color: #3b82f6;
+    border-color: #93c5fd;
+}
+.btn-icon-view:hover {
+    background-color: #eff6ff;
+    transform: scale(1.05);
+}
+
+.btn-icon-success {
+    color: #10b981;
+    border-color: #6ee7b7;
+}
+.btn-icon-success:hover {
+    background-color: #ecfdf5;
+    transform: scale(1.05);
 }
 
 .empty-state {

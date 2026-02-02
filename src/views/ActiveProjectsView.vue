@@ -36,7 +36,15 @@
             </div>
 
             <div class="card-column actions-col">
-                <button class="btn-primary" @click="verDetalle(p)">⚙️ Gestionar</button>
+                <button class="btn-icon-danger" @click="eliminarProyecto(p)" title="Eliminar Proyecto">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+                <button class="btn-revert" @click="revertirProyecto(p)" title="Revertir a Borrador">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button class="btn-primary" @click="verDetalle(p)" title="Gestionar Proyecto">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
             </div>
          </div>
       </div>
@@ -52,7 +60,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase/firebaseConfig'
-import { collection, query, where, getDocs } from 'firebase/firestore'
+import { collection, query, where, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore'
 
 const router = useRouter()
 const projects = ref([])
@@ -109,6 +117,44 @@ const verDetalle = (project) => {
 const getStatusClass = (status) => {
     if (!status) return ''
     return status.toLowerCase().replace(/\s+/g, '-')
+}
+
+const revertirProyecto = async (project) => {
+    if (!confirm(`¿Estás seguro de que deseas revertir el proyecto "${project.name}" a borrador? Desaparecerá de esta lista.`)) {
+        return
+    }
+
+    try {
+        const projectRef = doc(db, 'projects', project.id)
+        await updateDoc(projectRef, {
+            status: 'Draft',
+            updated_at: new Date()
+        })
+        
+        // Remove from local list
+        projects.value = projects.value.filter(p => p.id !== project.id)
+        
+    } catch (error) {
+        console.error('Error al revertir proyecto:', error)
+        alert('Hubo un error al revertir el proyecto.')
+    }
+}
+
+const eliminarProyecto = async (project) => {
+    if (!confirm(`ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE el proyecto "${project.name}"?\n\nEsta acción no se puede deshacer.`)) {
+        return
+    }
+
+    try {
+        await deleteDoc(doc(db, 'projects', project.id))
+        
+        // Remove from local list
+        projects.value = projects.value.filter(p => p.id !== project.id)
+        
+    } catch (error) {
+        console.error('Error al eliminar proyecto:', error)
+        alert('Hubo un error al eliminar el proyecto.')
+    }
 }
 </script>
 
@@ -191,6 +237,9 @@ const getStatusClass = (status) => {
 
 .actions-col {
     margin-left: auto;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
 }
 
 .badge-code {
@@ -223,22 +272,58 @@ const getStatusClass = (status) => {
     border: 1px solid rgba(30, 64, 175, 0.3);
 }
 
-.btn-primary {
+.btn-primary, .btn-revert {
   background-color: var(--primary);
   color: white;
   border: none;
-  padding: 10px 20px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border-radius: 8px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 0;
+  transition: background-color 0.2s;
+  font-size: 1.1rem;
+}
+
+.btn-icon-danger {
+    background: transparent;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.btn-icon-danger:hover {
+    background-color: #fef2f2;
+    transform: scale(1.05);
 }
 
 .btn-primary:hover {
     background-color: var(--primary-hover);
 }
+
+.btn-revert {
+    background-color: #64748b; /* Slate-500 for a neutral but solid "undo" action */
+}
+
+.btn-revert:hover {
+    background-color: #475569; /* Slate-600 */
+}
+
+/* Removed old btn-secondary styles as they are no longer used for the main actions */
 
 .empty-state {
   text-align: center;
