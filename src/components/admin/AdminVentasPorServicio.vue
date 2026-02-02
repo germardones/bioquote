@@ -2,6 +2,9 @@
   <div class="cotizacion-container" v-if="datosCargados">
 
     <h3 class="seccion">RESUMEN DE VENTAS</h3>
+    <p class="total-global">
+      Ventas posibles: ${{ totalVentas.toLocaleString() }}
+    </p>
 
     <div class="resumen-tablas">
       <div class="tabla-bloque" v-if="Object.keys(ventasPorServicio).length">
@@ -47,6 +50,7 @@ const datosCargados = ref(false)
 const ventasPorServicio = ref({})
 const ventasPorCategoria = ref({})
 const ventasPorAdicional = ref({})
+const totalVentas = ref(0)
 
 onMounted(async () => {
   const snapshot = await getDocs(collection(db, 'projects'))
@@ -61,7 +65,9 @@ onMounted(async () => {
     
     if (!porComplejidad[key]) porComplejidad[key] = { cantidad: 0, total: 0 }
     porComplejidad[key].cantidad++
-    porComplejidad[key].total += p.financials?.quoted_price || 0
+    const valor = p.financials?.quoted_price || 0
+    porComplejidad[key].total += valor
+    totalVentas.value += valor
   })
 
   // Reutilizamos la estructura de "ventasPorServicio" para complejidad por ahora
@@ -111,4 +117,27 @@ const volverADashboard = () => router.push('/dashboard')
   background-color: #f5f5f5;
 }
 
+.total-global {
+  margin-top: 0.5rem;
+  font-weight: bold;
+}
+
+.btn-volver {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 18px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+}
+
+.btn-volver:hover {
+  background-color: var(--primary-hover);
+}
 </style>

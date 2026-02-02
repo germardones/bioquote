@@ -76,7 +76,8 @@ onMounted(async () => {
 })
 
 const editarCliente = (cliente) => {
-  router.push({ name: 'editar-cliente', params: { rut: cliente.rut } }) // Necesitas definir esta ruta
+  // Navega a la vista para editar el cliente
+  router.push({ name: 'editar-cliente', params: { rut: cliente.rut } })
 }
 </script>
 
