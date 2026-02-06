@@ -1,5 +1,6 @@
 // quotation.js
 import { defineStore } from 'pinia'
+import { useSettings } from '../composables/useSettings'
 
 export const useQuotationStore = defineStore('quotation', {
   state: () => ({
@@ -15,11 +16,13 @@ export const useQuotationStore = defineStore('quotation', {
       complejidad: 1.0
     },
 
+    selectedDiscount: null, // { id, label, value }
+
     // Items para cotización personalizada
     customItems: [],
     // Estructura item: { id, description, hours, rate, observation }
 
-    // Configuración global (Hardcoded por ahora, idealmente vendría de Firestore 'settings')
+    // Configuración global
     config: {
       costo_base: {
         entidades: 4,
@@ -30,7 +33,7 @@ export const useQuotationStore = defineStore('quotation', {
       tarifas: {
         valor_hora_costo: 15000,
         valor_hora_venta: 25000,
-        factor_seguridad: 1.20,
+        factor_seguridad: 1.20, // Restored as requested
         factor_antigravity: 0.50
       }
     },
@@ -49,62 +52,65 @@ export const useQuotationStore = defineStore('quotation', {
         return state.customItems.reduce((acc, item) => acc + (Number(item.hours) || 0), 0)
       }
 
-      const { entidades, roles, vistas, apis, complejidad } = state.specs
-      const { costo_base } = state.config
+      // Dynamic Calculation using Global Settings
+      const { settings } = useSettings() // Access singleton state
+      let baseHours = 0
 
-      const baseHours =
-        (entidades * costo_base.entidades) +
-        (roles * costo_base.roles) +
-        (vistas * costo_base.vistas) +
-        (apis * costo_base.apis)
+      const specsList = settings.value.specs || []
 
+      specsList.forEach(spec => {
+        const count = state.specs[spec.id] || 0
+        const hours = Number(spec.baseHours) || 0
+        baseHours += count * hours
+      })
+
+      // Fallback for hardcoded if settings empty (rare/init)
+      if (specsList.length === 0) {
+        const { entidades, roles, vistas, apis } = state.specs
+        baseHours = (entidades * 4) + (roles * 2) + (vistas * 3) + (apis * 8)
+      }
+
+      const complejidad = state.specs.complejidad || 1.0
       return baseHours * complejidad
     },
     // Cálculo de horas reales (Antigravity impact)
     horasReales(state) {
       const horasM = this.horasMercado
       const { factor_antigravity } = state.config.tarifas
-
-      // En custom, asumiremos que las horas reales son las mismas o aplicamos el mismo factor si se desea.
-      // Por consistencia, aplicamos el mismo beneficio de Antigravity si es que aplica, 
-      // pero en custom items a veces es "horas hombre" puras.
-      // Dajémoslo con el factor por ahora para mostrar el "ahorro" o eficiencia.
       return horasM * (1 - factor_antigravity)
     },
     // Cálculo financiero completo
     financials(state) {
-      const { valor_hora_venta, valor_hora_costo, factor_seguridad } = state.config.tarifas
+      const { settings } = useSettings()
+
+      // Use dynamic rate if available, else fallback
+      const dynamicRate = settings.value.rates?.hourlyRate
+      const valor_hora_venta = dynamicRate || state.config.tarifas.valor_hora_venta
+
+      const { valor_hora_costo, factor_seguridad } = state.config.tarifas
 
       if (state.type === 'custom') {
-        // En custom, el precio de venta suele ser explícito por item (hours * rate)
-        // O si no tienen rate, se usa el standard.
         let precioVentaTotal = 0
         let horasTotal = 0
 
         state.customItems.forEach(item => {
           const h = Number(item.hours) || 0
-
           if (item.pricingMethod === 'fixed') {
-            // Precio Fijo directo
             precioVentaTotal += (Number(item.fixedValue) || 0)
           } else {
-            // Por Hora (Default)
             const r = Number(item.rate) || valor_hora_venta
             precioVentaTotal += (h * r)
           }
-
           horasTotal += h
         })
 
-        // Costo interno sigue siendo base por hora (developers cost)
-        // Aunque en custom items podría variar, asumiremos standard cost para simplificar
         const costoInterno = horasTotal * valor_hora_costo
         const margen = precioVentaTotal - costoInterno
 
         return {
           horasMercado: horasTotal,
-          horasReales: Math.round(horasTotal * (1 - 0.5)), // Mismo dummy logic de 'real' vs 'mercado'
-          precioSugerido: Math.round(precioVentaTotal), // En custom, el sugerido es el calculado
+          horasReales: Math.round(horasTotal * (1 - 0.5)),
+          precioSugerido: Math.round(precioVentaTotal),
           costoInterno: Math.round(costoInterno),
           margen: Math.round(margen),
           margenPorcentaje: precioVentaTotal > 0 ? Math.round((margen / precioVentaTotal) * 100) : 0
@@ -115,10 +121,21 @@ export const useQuotationStore = defineStore('quotation', {
       const horasM = this.horasMercado
       const horasR = this.horasReales
 
-      const prezzoBase = horasM * valor_hora_venta
-      // const precioSugerido = prezzoBase + (prezzoBase * (factor_seguridad - 1)) 
-      // Simplificado:
-      const precioVenta = (horasM * valor_hora_venta) * factor_seguridad
+      // Base Calculation (Pure Hours)
+      const valorBasePuro = horasM * valor_hora_venta
+
+      // Safety Factor Calculation
+      // Restore factor to 1.20 as requested
+      const bufferSeguridad = valorBasePuro * (factor_seguridad - 1)
+      let precioVenta = valorBasePuro + bufferSeguridad
+
+      // Apply Discount if selected
+      let discountAmount = 0
+      if (state.selectedDiscount && state.selectedDiscount.value) {
+        const pct = Number(state.selectedDiscount.value) / 100
+        discountAmount = precioVenta * pct
+        precioVenta = precioVenta - discountAmount
+      }
 
       const costoInterno = horasR * valor_hora_costo
       const margen = precioVenta - costoInterno
@@ -126,7 +143,11 @@ export const useQuotationStore = defineStore('quotation', {
       return {
         horasMercado: Math.round(horasM * 10) / 10,
         horasReales: Math.round(horasR * 10) / 10,
+        valorBasePuro: Math.round(valorBasePuro),
+        montoSeguridad: Math.round(bufferSeguridad), // Expose the "hidden" factor amount
         precioSugerido: Math.round(precioVenta),
+        montoDescuento: Math.round(discountAmount),
+        descuentoAplicado: state.selectedDiscount,
         costoInterno: Math.round(costoInterno),
         margen: Math.round(margen),
         margenPorcentaje: precioVenta > 0 ? Math.round((margen / precioVenta) * 100) : 0
@@ -155,6 +176,10 @@ export const useQuotationStore = defineStore('quotation', {
         rut: '',
         servicioDeseado: ''
       }
+      this.selectedDiscount = null
+    },
+    setDiscount(discount) {
+      this.selectedDiscount = discount ? { ...discount } : null
     },
     addItem(item) {
       this.customItems.push({

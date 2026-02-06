@@ -3,7 +3,7 @@
     <div class="header">
       <h2>Flujo de Caja y Gastos Fijos</h2>
       <button @click="router.push('/dashboard')" class="btn-volver">
-        <span class="icon">⬅️</span> Volver
+        Volver
       </button>
     </div>
 

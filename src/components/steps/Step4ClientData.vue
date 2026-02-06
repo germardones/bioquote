@@ -17,9 +17,21 @@
           v-model="cliente.rut" 
           type="text" 
           placeholder="Ej: 12.345.678-9" 
-          @blur="buscarCliente"
+          @focus="showDropdown = true"
+          @blur="handleBlur"
         />
         <span v-if="buscandoCliente" class="loading-icon">🔍</span>
+        
+        <!-- Dropdown Autocomplete -->
+        <ul v-if="showDropdown && filteredClients.length > 0" class="autocomplete-dropdown">
+            <li 
+                v-for="c in filteredClients" 
+                :key="c.rut" 
+                @mousedown.prevent="seleccionarCliente(c)"
+            >
+                <strong>{{ c.rut }}</strong> - {{ c.razonSocial || c.nombre }}
+            </li>
+        </ul>
       </div>
       <p v-if="errores.rut" class="error">{{ errores.rut }}</p>
 
@@ -46,7 +58,7 @@
 
 <script setup>
 import { useQuotationStore } from '../../store/quotation'
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../../firebase/firebaseConfig'
 import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
@@ -66,50 +78,59 @@ const validarTelefono = (telefono) => {
   return soloNumeros.length >= 9 && soloNumeros.length <= 12
 }
 
-const buscarCliente = async () => {
-  if (!cliente.rut || !validarRut(cliente.rut)) return
+const knownClients = ref([])
+const showDropdown = ref(false)
 
-  buscandoCliente.value = true
-  try {
-    /*
-       Para evitar un índice compuesto, traemos los últimos 10 proyectos de este RUT
-       y ordenamos en memoria para obtener el más reciente.
-    */
-    const qSimple = query(
-         collection(db, 'projects'),
-         where('client_data.rut', '==', cliente.rut),
-         limit(10) 
-    )
-      
-    const snapshot = await getDocs(qSimple)
-      
-    if (!snapshot.empty) {
-      // Ordenar en memoria descendente por fecha
-      const docs = snapshot.docs.map(d => d.data())
-      
-      // Asumimos que created_at es timestamp. Si no existe, lo tratamos como antiguo.
-      docs.sort((a, b) => {
-          const tA = a.created_at?.seconds || 0
-          const tB = b.created_at?.seconds || 0
-          return tB - tA
-      })
-
-      const mostRecent = docs[0]
-      const c = mostRecent.client_data || mostRecent.cliente 
-      
-      if (c) {
-        cliente.nombre = c.nombre || mostRecent.client_name || ''
-        cliente.razonSocial = c.razonSocial || ''
-        cliente.direccion = c.direccion || ''
-        cliente.email = c.email || ''
-        cliente.contacto = c.contacto || ''
-      }
+// Cargar clientes previos
+onMounted(async () => {
+    try {
+        const snap = await getDocs(collection(db, 'projects'))
+        const unique = new Map()
+        
+        snap.docs.forEach(d => {
+            const p = d.data()
+            // Prioridad: client_data > cliente > fallback
+            const c = p.client_data || p.cliente
+            if (c && c.rut) {
+                // Guardamos el más reciente si ya existe (asumiendo orden, o simplemente el primero)
+                // O mejor, sobreescribimos para tener la data más "fresca" si ordenamos por fecha...
+                // Simplemente guardemos si no está.
+                if (!unique.has(c.rut)) {
+                    unique.set(c.rut, {
+                        nombre: c.nombre || p.client_name || '',
+                        razonSocial: c.razonSocial || '',
+                        rut: c.rut,
+                        direccion: c.direccion || '',
+                        email: c.email || '',
+                        contacto: c.contacto || ''
+                    })
+                }
+            }
+        })
+        knownClients.value = Array.from(unique.values())
+    } catch (e) {
+        console.error("Error loading history:", e)
     }
-  } catch (error) {
-    console.error('Error buscando cliente:', error)
-  } finally {
-    buscandoCliente.value = false
-  }
+})
+
+const filteredClients = computed(() => {
+    if (!cliente.rut) return []
+    const term = cliente.rut.toLowerCase()
+    return knownClients.value.filter(c => 
+        c.rut.toLowerCase().includes(term) || 
+        c.razonSocial.toLowerCase().includes(term)
+    ).slice(0, 5) // Limit to 5 results
+})
+
+const seleccionarCliente = (c) => {
+    Object.assign(cliente, c)
+    showDropdown.value = false
+    errores.rut = ''
+}
+
+// Ocultar dropdown al perder foco (con delay para permitir click)
+const handleBlur = () => {
+    setTimeout(() => { showDropdown.value = false }, 200)
 }
 
 const guardarYContinuar = () => {
@@ -213,5 +234,39 @@ label {
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-surface);
+    border: 1px solid var(--primary);
+    border-radius: 0 0 8px 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.autocomplete-dropdown li {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.autocomplete-dropdown li:hover {
+    background: var(--bg-app);
+    color: var(--primary);
+}
+
+.autocomplete-dropdown li:last-child {
+    border-bottom: none;
 }
 </style>

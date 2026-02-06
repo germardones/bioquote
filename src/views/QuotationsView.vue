@@ -4,7 +4,7 @@
       <h2>Mis Cotizaciones</h2>
       <div class="actions">
         <button @click="router.push('/dashboard')" class="btn-volver" :disabled="loading">
-          <span class="icon">⬅️</span> Volver
+           Volver
         </button>
       </div>
     </div>

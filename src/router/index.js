@@ -39,14 +39,32 @@ const routes = [
     component: () => import('../views/ClientesView.vue')
   },
   {
+    path: '/crm/followup',
+    name: 'CRMFollowUp',
+    component: () => import('../views/crm/CRMFollowUpView.vue')
+  },
+  {
+    path: '/crm/cliente/:rut',
+    name: 'CRMClientDetail',
+    component: () => import('../views/crm/CRMClientDetailView.vue')
+  },
+  {
     path: '/editar-cliente/:rut',
     name: 'editar-cliente',
-    component: () => import('../views/EditClientView.vue')
+    // Redirect legacy route or keep for backward compat but point to same component?
+    // Let's redirect to keep it clean, or just use the new component.
+    // Using new component to migrate fully effectively.
+    component: () => import('../views/crm/CRMClientDetailView.vue')
   },
   {
     path: '/admin',
     name: 'AdminDashboard',
     component: () => import('../views/AdminDashboard.vue')
+  },
+  {
+    path: '/admin/config',
+    name: 'AdminConfig',
+    component: () => import('../views/admin/SystemConfigurationView.vue')
   },
   {
     path: '/admin/cotizaciones',

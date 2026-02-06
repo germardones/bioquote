@@ -3,7 +3,7 @@
     <div class="header">
       <h2>Gestión de Ejecución: {{ project?.codigo }}</h2>
       <button @click="router.push('/proyectos-en-curso')" class="btn-volver" :disabled="loading">
-        <span class="icon">⬅️</span> Volver
+         Volver
       </button>
     </div>
 

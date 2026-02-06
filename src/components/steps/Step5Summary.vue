@@ -87,8 +87,38 @@
         </div>
       </div>
 
+      <!-- DISCOUNT SECTION -->
+      <div class="discount-section">
+          <label>Aplicar Descuento:</label>
+          <select v-model="selectedDiscountId" @change="applyDiscount">
+              <option :value="null">Sin Descuento</option>
+              <option v-for="d in activeDiscounts" :key="d.id" :value="d.id">
+                  {{ d.label }} ({{ d.value }}%)
+              </option>
+          </select>
+      </div>
+
       <div class="total-section">
         <h3>Precio Sugerido (Venta)</h3>
+        
+        <!-- Breakdown -->
+        <div class="financials-breakdown">
+             <div class="breakdown-row">
+                <span>Calculado ({{ store.financials.horasMercado }}h):</span>
+                <span>${{ (store.financials.valorBasePuro || 0).toLocaleString() }}</span>
+             </div>
+             <div class="breakdown-row highlight-warn">
+                <span>+ Factor Seguridad (20%):</span>
+                <span>${{ (store.financials.montoSeguridad || 0).toLocaleString() }}</span>
+             </div>
+             <div v-if="store.financials.montoDescuento > 0" class="breakdown-row highlight-danger">
+                <span>- Descuento:</span>
+                <span>${{ store.financials.montoDescuento.toLocaleString() }}</span>
+             </div>
+        </div>
+        
+        <div class="divider"></div>
+
         <p class="total-price">${{ store.financials.precioSugerido.toLocaleString() }}</p>
         <p class="disclaimer">+ IVA</p>
       </div>
@@ -116,11 +146,33 @@ import { useQuotationStore } from "../../store/quotation";
 import { useRouter } from "vue-router";
 import { db, auth } from "../../firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { ref } from "vue";
+import { useSettings } from '../../composables/useSettings'
+import { ref, onMounted, computed, watch } from "vue";
 
 const store = useQuotationStore();
 const router = useRouter();
 const cargando = ref(false);
+const { settings, fetchSettings } = useSettings()
+
+const activeDiscounts = computed(() => settings.value.discounts || [])
+const selectedDiscountId = ref(null)
+
+onMounted(async () => {
+    await fetchSettings()
+    // Restore if already selected
+    if (store.selectedDiscount) {
+        selectedDiscountId.value = store.selectedDiscount.id
+    }
+})
+
+const applyDiscount = () => {
+    if (!selectedDiscountId.value) {
+        store.setDiscount(null)
+    } else {
+        const disc = activeDiscounts.value.find(d => d.id === selectedDiscountId.value)
+        store.setDiscount(disc)
+    }
+}
 
 const guardarProyecto = async () => {
   try {
@@ -137,9 +189,13 @@ const guardarProyecto = async () => {
       owner_uid: user.uid,
       sales_rep_name: user.displayName || user.email,
       
-      // Datos del cliente completos (desnormalizados por ahora)
+      // Datos del cliente completos
       client_data: {
-        ...store.cliente
+        ...store.cliente,
+        // Auto-add observation if discount applied
+        observacion: store.selectedDiscount 
+          ? `Aplicado: ${store.selectedDiscount.label} (${store.selectedDiscount.value}%)` 
+          : '' 
       },
 
       // Specs
@@ -153,11 +209,13 @@ const guardarProyecto = async () => {
         complexity: store.specs.complejidad
       },
 
-      // Financials
+      // Financials (Add discount details)
       financials: {
         estimated_hours_market: store.financials.horasMercado,
         estimated_hours_real: store.financials.horasReales,
         quoted_price: store.financials.precioSugerido,
+        discount_amount: store.financials.montoDescuento || 0,
+        discount_applied: store.financials.descuentoAplicado || null,
         internal_cost: store.financials.costoInterno,
         projected_margin: store.financials.margen
       },
@@ -172,9 +230,6 @@ const guardarProyecto = async () => {
     console.log("Proyecto guardado con ID: ", docRef.id);
     
     alert("Proyecto guardado exitosamente.");
-    // Opcional: Redirigir o limpiar
-    // store.reset();
-    // router.push("/dashboard");
 
   } catch (err) {
     console.error("Error al guardar proyecto", err);
@@ -413,5 +468,78 @@ h3 {
   .total-price {
     font-size: 2rem;
   }
+}
+
+.discount-section {
+    background: var(--bg-app);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px dashed var(--border-color);
+}
+.discount-section label {
+    font-weight: 700;
+    color: var(--text-main);
+}
+.discount-section select {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    flex-grow: 1;
+    max-width: 300px;
+    font-weight: 600;
+}
+
+.discount-display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    margin-bottom: 0.5rem;
+}
+.original-price {
+    text-decoration: line-through;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+.discount-tag {
+    color: #ef4444;
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.financials-breakdown {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    width: 100%;
+}
+.breakdown-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+}
+.breakdown-row.highlight-warn {
+    color: #f59e0b;
+    font-weight: 600;
+}
+.breakdown-row.highlight-danger {
+    color: #ef4444;
+    font-weight: 600;
+}
+.divider {
+    height: 1px;
+    background: rgba(0, 131, 102, 0.3);
+    margin: 1rem 0;
+}
+
+.total-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; /* Align right */
 }
 </style>

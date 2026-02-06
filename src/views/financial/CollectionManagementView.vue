@@ -3,7 +3,7 @@
     <div class="header">
       <h2>Gestión de Cobros</h2>
       <button @click="router.push('/dashboard')" class="btn-volver">
-        <span class="icon">⬅️</span> Volver
+        Volver
       </button>
     </div>
 
@@ -54,7 +54,13 @@
                         </div>
                         <div class="stat">
                             <span>Pendiente</span>
-                            <span class="amount pending">{{ formatCurrency(p.totalValue - p.paidAmount) }}</span>
+                            <span v-if="p.totalValue > 0 && (p.totalValue - p.paidAmount) <= 0" class="badge-paid">
+                                ✅ Pagado
+                            </span>
+                            <span v-else-if="p.totalValue === 0" class="badge-warning">
+                                ⚠️ Sin Valor
+                            </span>
+                            <span v-else class="amount pending">{{ formatCurrency(p.totalValue - p.paidAmount) }}</span>
                         </div>
                     </div>
                     <div class="progress-bar-bg">
@@ -255,6 +261,24 @@ const registerPayment = async () => {
 .btn-save { background: #22c55e; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
 .btn-cancel { background: var(--bg-app); border: 1px solid var(--border-color); padding: 10px 20px; border-radius: 6px; cursor: pointer; color: var(--text-muted); }
 .code { font-family: monospace; background: var(--bg-app); padding: 2px 6px; border-radius: 4px; color: var(--text-muted); }
+
+.badge-paid {
+    background: #dcfce7;
+    color: #16a34a;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.badge-warning {
+    background: #fefce8;
+    color: #ca8a04;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
 
 @media (max-width: 640px) {
   .container { padding: 1rem; }

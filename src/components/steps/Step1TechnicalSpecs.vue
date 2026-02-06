@@ -22,51 +22,18 @@
     <!-- MODO PARAMÉTRICO -->
     <div v-if="store.type === 'parametric'" class="mode-parametric">
       <div class="grid-inputs">
-        <!-- ENTIDADES -->
-        <div class="input-card">
-          <label>Entidades de Datos (Modelos)</label>
-          <p class="hint">Ej: Usuarios, Productos, Pedidos (Base: 4h c/u)</p>
-          <div class="counter">
-            <button @click="decrement('entidades')">-</button>
-            <input type="number" v-model.number="store.specs.entidades" min="0">
-            <button @click="increment('entidades')">+</button>
-          </div>
+        <!-- Generación Dinámica de Inputs según Configuración -->
+        <div v-for="spec in settings.specs" :key="spec.id" class="input-card">
+           <label>{{ spec.label }}</label>
+           <p class="hint">{{ spec.hint }} (Base: {{ spec.baseHours }}h)</p>
+           <div class="counter">
+             <button @click="decrement(spec.id)">-</button>
+             <input type="number" v-model.number="store.specs[spec.id]" min="0">
+             <button @click="increment(spec.id)">+</button>
+           </div>
         </div>
 
-        <!-- ROLES -->
-        <div class="input-card">
-          <label>Roles de Usuario</label>
-          <p class="hint">Ej: Admin, Vendedor, Cliente (Base: 2h c/u)</p>
-          <div class="counter">
-            <button @click="decrement('roles')">-</button>
-            <input type="number" v-model.number="store.specs.roles" min="0">
-            <button @click="increment('roles')">+</button>
-          </div>
-        </div>
-
-        <!-- VISTAS -->
-        <div class="input-card">
-          <label>Vistas Clave (Pantallas)</label>
-          <p class="hint">Pantallas únicas o complejas (Base: 3h c/u)</p>
-          <div class="counter">
-            <button @click="decrement('vistas')">-</button>
-            <input type="number" v-model.number="store.specs.vistas" min="0">
-            <button @click="increment('vistas')">+</button>
-          </div>
-        </div>
-
-        <!-- APIs -->
-        <div class="input-card">
-          <label>Integraciones / APIs</label>
-          <p class="hint">Conexiones externas (Base: 8h c/u)</p>
-          <div class="counter">
-            <button @click="decrement('apis')">-</button>
-            <input type="number" v-model.number="store.specs.apis" min="0">
-            <button @click="increment('apis')">+</button>
-          </div>
-        </div>
-
-        <!-- COMPLEJIDAD -->
+        <!-- COMPLEJIDAD (Fijo, pero podría parametrizarse también) -->
         <div class="input-card full-width">
           <label>Factor de Complejidad: {{ store.specs.complejidad }}x</label>
           <p class="hint">Ajuste por dificultad técnica o incertidumbre (1.0 - 1.5)</p>
@@ -192,12 +159,24 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuotationStore } from '../../store/quotation'
+import { useSettings } from '../../composables/useSettings'
 
 const router = useRouter()
 const store = useQuotationStore()
+const { settings, fetchSettings } = useSettings()
+
+onMounted(async () => {
+    await fetchSettings()
+    // Initialize specs if needed (ensure properties exist in store)
+    settings.value.specs.forEach(s => {
+        if (store.specs[s.id] === undefined) {
+             store.specs[s.id] = 0
+        }
+    })
+})
 
 // State local para nuevo item
 const newItem = ref({
@@ -239,6 +218,7 @@ const addNewItem = () => {
 }
 
 const increment = (field) => {
+  if (!store.specs[field]) store.specs[field] = 0 // init if undefined
   store.specs[field]++
 }
 

@@ -4,7 +4,7 @@
       <h2>Proyectos en Curso</h2>
       <div class="actions">
           <button @click="router.push('/dashboard')" class="btn-volver">
-            <span class="icon">⬅️</span> Volver
+            Volver
           </button>
       </div>
     </div>
@@ -36,6 +36,9 @@
             </div>
 
             <div class="card-column actions-col">
+                <button class="btn-icon-success" @click="finalizarProyecto(p)" title="Finalizar Proyecto" v-if="p.status !== 'Completed'">
+                    <i class="fa-solid fa-check"></i>
+                </button>
                 <button class="btn-icon-danger" @click="eliminarProyecto(p)" title="Eliminar Proyecto">
                     <i class="fa-solid fa-trash"></i>
                 </button>
@@ -141,21 +144,43 @@ const revertirProyecto = async (project) => {
 }
 
 const eliminarProyecto = async (project) => {
-    if (!confirm(`ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE el proyecto "${project.name}"?\n\nEsta acción no se puede deshacer.`)) {
-        return
-    }
+     if (!confirm(`ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE el proyecto "${project.name}"?\n\nEsta acción no se puede deshacer.`)) {
+         return
+     }
+ 
+     try {
+         await deleteDoc(doc(db, 'projects', project.id))
+         
+         // Remove from local list
+         projects.value = projects.value.filter(p => p.id !== project.id)
+         
+     } catch (error) {
+         console.error('Error al eliminar proyecto:', error)
+         alert('Hubo un error al eliminar el proyecto.')
+     }
+ }
 
-    try {
-        await deleteDoc(doc(db, 'projects', project.id))
-        
-        // Remove from local list
-        projects.value = projects.value.filter(p => p.id !== project.id)
-        
-    } catch (error) {
-        console.error('Error al eliminar proyecto:', error)
-        alert('Hubo un error al eliminar el proyecto.')
-    }
-}
+ const finalizarProyecto = async (project) => {
+     if (!confirm(`¿Deseas finalizar el proyecto "${project.name}"? Pasará a estado completado.`)) {
+         return
+     }
+     try {
+         const projectRef = doc(db, 'projects', project.id)
+         await updateDoc(projectRef, {
+             status: 'Completed',
+             updated_at: new Date()
+         })
+         // Update local state to reflect change (or move to history if we want to hide it, 
+         // but requirement was just to mark it. The filter shows 'En Curso' or 'Completed', so it stays visible but updated)
+         const idx = projects.value.findIndex(p => p.id === project.id)
+         if (idx !== -1) {
+             projects.value[idx].status = 'Completed'
+         }
+     } catch (error) {
+         console.error('Error al finalizar proyecto:', error)
+         alert('Hubo un error al finalizar el proyecto.')
+     }
+ }
 </script>
 
 <style scoped>
@@ -321,6 +346,27 @@ const eliminarProyecto = async (project) => {
 
 .btn-revert:hover {
     background-color: #475569; /* Slate-600 */
+}
+
+.btn-icon-success {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #16a34a;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+}
+
+.btn-icon-success:hover {
+    background-color: #f0fdf4;
+    transform: scale(1.05);
 }
 
 /* Removed old btn-secondary styles as they are no longer used for the main actions */

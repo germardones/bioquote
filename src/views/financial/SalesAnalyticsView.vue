@@ -3,7 +3,7 @@
     <div class="header">
       <h2>Rentabilidad por Proyecto</h2>
       <button @click="router.push('/dashboard')" class="btn-volver">
-        <span class="icon">⬅️</span> Volver
+        Volver
       </button>
     </div>
 

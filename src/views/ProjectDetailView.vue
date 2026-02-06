@@ -5,7 +5,7 @@
       <div class="actions">
         <span v-if="project && project.codigo" class="codigo-cotizacion">ID: {{ project.codigo }}</span>
        <button @click="router.back()" class="btn-volver" :disabled="loading">
-         <span class="icon">⬅️</span> Volver
+         Volver
        </button>
       </div>
     </div>

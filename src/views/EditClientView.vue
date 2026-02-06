@@ -45,7 +45,7 @@
       </button>
 
        <button @click="router.push('/dashboard')" class="btn-volver">
-         <span class="icon">⬅️</span> Volver
+         Volver
        </button>
     </div>
   </div>

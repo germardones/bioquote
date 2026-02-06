@@ -1,51 +1,79 @@
 <template>
-  <div class="container">
-    <h2>Clientes Registrados</h2>
+  <div class="container fade-in">
+    <div class="header">
+        <div class="header-left">
+            
+            <div class="title-block">
+                <h2>Directorio de Clientes</h2>
+                <p class="subtitle">{{ filteredClientes.length }} clientes registrados</p>
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input v-model="searchQuery" type="text" placeholder="Buscar por nombre, RUT..." />
+            </div>
+        </div>
+        <button @click="router.back()" class="btn-volver">
+              Volver
+        </button>
+    </div>
 
-     <button @click="router.push('/dashboard')" class="btn-volver">
-       <span class="icon">⬅️</span> Volver
-     </button>
-
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Razón Social</th>
-          <th>RUT</th>
-          <th>Correo</th>
-          <th>Dirección</th>
-          <th>Contacto</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="cliente in clientes" :key="cliente.rut">
-          <td>{{ cliente.nombre }}</td>
-          <td>{{ cliente.razonSocial }}</td>
-          <td>{{ cliente.rut }}</td>
-          <td>{{ cliente.email || '-' }}</td>
-          <td>{{ cliente.direccion || '-' }}</td>
-          <td>{{ cliente.contacto || '-' }}</td>
-          <td>
-            <button class="btn-editar" @click="editarCliente(cliente)">Editar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="table-container card">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>Cliente / Razón Social</th>
+              <th>RUT</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="filteredClientes.length === 0">
+                <td colspan="3" class="empty-cell">
+                    No se encontraron clientes coincidente.
+                </td>
+            </tr>
+            <tr v-for="cliente in filteredClientes" :key="cliente.rut">
+              <td>
+                  <div class="client-info">
+                      <span class="c-name">{{ cliente.nombre }}</span>
+                      <span class="c-razon" v-if="cliente.razonSocial && cliente.razonSocial !== cliente.nombre">
+                          <i class="fa-solid fa-building"></i> {{ cliente.razonSocial }}
+                      </span>
+                  </div>
+              </td>
+              <td>
+                  <span class="rut-badge">{{ cliente.rut }}</span>
+              </td>
+              <td class="text-right">
+                <button class="btn-action" @click="editarCliente(cliente)" title="Ver Detalle">
+                    <span>Gestionar</span> <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { collection, getDocs } from 'firebase/firestore'
+import { ref, onMounted, computed } from 'vue'
+import { collection, getDocs, orderBy, query } from 'firebase/firestore'
 import { db } from '../firebase/firebaseConfig'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const clientes = ref([])
+const searchQuery = ref('')
+const loading = ref(true)
 
 onMounted(async () => {
   try {
+    // We fetch from projects to extract clients implicitly as per current architecture
+    // Ideally this should come from a 'clients' collection if it existed.
     const querySnapshot = await getDocs(collection(db, 'projects'))
     const vistos = new Set()
 
@@ -70,54 +98,186 @@ onMounted(async () => {
         }
       }
     })
+    
+    // Sort alpha
+    clientes.value.sort((a,b) => a.nombre.localeCompare(b.nombre))
+
   } catch (error) {
     console.error("Error al cargar clientes:", error)
+  } finally {
+    loading.value = false
   }
+})
+
+const filteredClientes = computed(() => {
+    if (!searchQuery.value) return clientes.value
+    const q = searchQuery.value.toLowerCase()
+    return clientes.value.filter(c => 
+        c.nombre.toLowerCase().includes(q) || 
+        (c.razonSocial && c.razonSocial.toLowerCase().includes(q)) ||
+        (c.rut && c.rut.toLowerCase().includes(q))
+    )
 })
 
 const editarCliente = (cliente) => {
   // Navega a la vista para editar el cliente
-  router.push({ name: 'editar-cliente', params: { rut: cliente.rut } })
+  // Ensure we rely on RUT which is the key ID here
+  if(cliente.rut === 'N/D') {
+      alert("Este cliente no tiene RUT válido para gestión detallada.")
+      return
+  }
+  router.push({ name: 'CRMClientDetail', params: { rut: cliente.rut } })
 }
 </script>
 
 <style scoped>
 .container {
   padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-table {
+/* Header */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+}
+
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.btn-back {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-muted); font-size: 0.95rem;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0;
+    transition: color 0.2s;
+}
+.btn-back:hover { color: var(--primary); }
+
+.title-block h2 { margin: 0; font-size: 1.8rem; letter-spacing: -0.5px; }
+.subtitle { margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
+
+/* Search */
+.search-box {
+    position: relative;
+    width: 300px;
+}
+.search-box i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+}
+.search-box input {
+    width: 100%;
+    padding: 10px 10px 10px 38px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+    color: var(--text-main);
+    transition: all 0.2s;
+}
+.search-box input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+    outline: none;
+}
+
+/* Table Card */
+.card {
+    background: var(--bg-surface);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    overflow: hidden; /* For rounded corners on table */
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.modern-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
 }
 
-th, td {
-  padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  text-align: left;
-  color: var(--text-main);
-}
-
-th {
+.modern-table th {
   background-color: var(--bg-app);
   color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  text-align: left;
 }
 
+.modern-table td {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+  vertical-align: middle;
+}
 
-.btn-editar {
-  background-color: var(--bg-header);
-  color: var(--text-on-header);
-  padding: 6px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+.modern-table tr:last-child td { border-bottom: none; }
+.modern-table tr:hover td { background-color: var(--bg-app); }
+
+.client-info { display: flex; flex-direction: column; gap: 4px; }
+.c-name { font-weight: 600; font-size: 1rem; }
+.c-razon { font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+
+.rut-badge {
+    background: var(--bg-app);
+    border: 1px solid var(--border-color);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.text-right { text-align: right; }
+
+.btn-action {
+  background-color: transparent;
+  color: var(--primary);
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 0.9rem;
   transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.btn-editar:hover {
-  background-color: var(--primary);
-  border-color: var(--primary);
+.btn-action:hover {
+  background-color: rgba(59, 130, 246, 0.1); 
+  /* color stays primary */
+}
+
+.empty-cell {
+    text-align: center;
+    padding: 3rem !important;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .header { flex-direction: column; align-items: stretch; }
+  .search-box { width: 100%; }
+  .modern-table th, .modern-table td { padding: 1rem; }
 }
 </style>
