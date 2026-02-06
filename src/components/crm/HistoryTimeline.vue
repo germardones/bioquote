@@ -47,16 +47,46 @@
           <div class="timeline-marker">
             <i :class="getIcon(log.type)"></i>
           </div>
+          
           <div class="timeline-content">
-            <div class="timeline-header">
-              <span class="log-type">{{ getLabel(log.type) }}</span>
-              <span class="log-date">{{ formatDate(log.date) }}</span>
-            </div>
-            <h4 class="log-summary">{{ log.summary }}</h4>
-             <p v-if="log.details" class="log-details">{{ log.details }}</p>
-             <div class="log-meta" v-if="log.author">
-                <small>Por: {{ log.author }}</small>
+            <!-- Edit Mode -->
+             <div v-if="editingLogId === log.id" class="edit-mode">
+                <div class="form-row">
+                    <select v-model="editForm.type" class="type-select">
+                        <option value="call">📞 Llamada</option>
+                        <option value="email">📧 Correo</option>
+                        <option value="meeting">🤝 Reunión</option>
+                        <option value="note">📝 Nota</option>
+                        <option value="whatsapp">📱 WhatsApp</option>
+                    </select>
+                    <input v-model="editForm.date" type="datetime-local" class="date-input" />
+                </div>
+                <input v-model="editForm.summary" type="text" class="summary-input mb-2" placeholder="Resumen" />
+                <textarea v-model="editForm.details" class="details-input mb-2" rows="3"></textarea>
+                
+                <div class="edit-actions">
+                    <button @click="saveEdit(log.id)" class="btn-save-edit">Guardar</button>
+                    <button @click="cancelEdit" class="btn-cancel-edit">Cancelar</button>
+                </div>
              </div>
+
+            <!-- View Mode -->
+            <div v-else>
+                <div class="timeline-header">
+                <span class="log-type">{{ getLabel(log.type) }}</span>
+                <div class="header-right">
+                    <span class="log-date">{{ formatDate(log.date) }}</span>
+                    <button class="btn-icon-edit" @click="startEdit(log)" title="Editar">
+                        <i class="fa-solid fa-pencil"></i>
+                    </button>
+                </div>
+                </div>
+                <h4 class="log-summary">{{ log.summary }}</h4>
+                <p v-if="log.details" class="log-details">{{ log.details }}</p>
+                <div class="log-meta" v-if="log.author">
+                    <small>Por: {{ log.author }}</small>
+                </div>
+            </div>
           </div>
         </div>
       </div>
@@ -79,11 +109,21 @@ const props = defineProps({
 const logs = ref([])
 const loading = ref(true)
 
+// New Log State
 const newLog = ref({
   type: 'call',
   summary: '',
   details: '',
   date: new Date().toISOString().slice(0, 16)
+})
+
+// Editing State
+const editingLogId = ref(null)
+const editForm = ref({
+    type: '',
+    summary: '',
+    details: '',
+    date: ''
 })
 
 const isValid = computed(() => {
@@ -120,6 +160,15 @@ const formatDate = (timestamp) => {
     day: '2-digit', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit'
   }).format(date)
+}
+
+// Helpers for Date Input (YYYY-MM-DDTHH:mm)
+const toInputDate = (timestamp) => {
+    if (!timestamp) return ''
+    const d = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)
+    // Adjust to local time string for input
+    const pad = (n) => n < 10 ? '0'+n : n
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 const fetchLogs = async () => {
@@ -170,18 +219,11 @@ const addLog = async () => {
         
         // Add locally for instant feedback
         logs.value.unshift({ id: docRef.id, ...logData })
+        // Re-sort locally just in case
+        logs.value.sort((a,b) => b.date.seconds - a.date.seconds)
 
         // Update Project(s) last_interaction_date
-        // We find all projects for this client and update the date to refresh the "Matrix"
-        const qProj = query(collection(db, 'projects'), where('client_data.rut', '==', props.clientRut))
-        const snapProj = await getDocs(qProj)
-        
-        // Also check legacy if needed, but we encourage migration. 
-        // For now, let's just update perfectly matched new structure docs.
-        const updatePromises = snapProj.docs.map(d => updateDoc(d.ref, {
-             'client_data.last_interaction_date': new Date().toISOString()
-        }))
-        await Promise.all(updatePromises)
+        updateProjectInteractionDate()
         
         // Reset form
         newLog.value.summary = ''
@@ -192,6 +234,68 @@ const addLog = async () => {
         alert("Error al guardar la interacción")
     }
 }
+
+const updateProjectInteractionDate = async () => {
+    // We find all projects for this client and update the date to refresh the "Matrix"
+    const qProj = query(collection(db, 'projects'), where('client_data.rut', '==', props.clientRut))
+    const snapProj = await getDocs(qProj)
+    
+    const updatePromises = snapProj.docs.map(d => updateDoc(d.ref, {
+            'client_data.last_interaction_date': new Date().toISOString()
+    }))
+    await Promise.all(updatePromises)
+}
+
+// Edit Actions
+const startEdit = (log) => {
+    editingLogId.value = log.id
+    editForm.value = {
+        type: log.type,
+        summary: log.summary,
+        details: log.details || '',
+        date: toInputDate(log.date)
+    }
+}
+
+const cancelEdit = () => {
+    editingLogId.value = null
+    editForm.value = { type:'', summary:'', details:'', date:'' }
+}
+
+const saveEdit = async (id) => {
+    try {
+        const logRef = doc(db, 'crm_interactions', id)
+        const newDate = Timestamp.fromDate(new Date(editForm.value.date))
+        
+        const updates = {
+            type: editForm.value.type,
+            summary: editForm.value.summary,
+            details: editForm.value.details,
+            date: newDate
+        }
+
+        await updateDoc(logRef, updates)
+        
+        // Update local
+        const index = logs.value.findIndex(l => l.id === id)
+        if (index !== -1) {
+             logs.value[index] = { ...logs.value[index], ...updates }
+             // Re-sort
+             logs.value.sort((a, b) => {
+                const dateA = a.date && a.date.seconds ? a.date.seconds : 0
+                const dateB = b.date && b.date.seconds ? b.date.seconds : 0
+                return dateB - dateA
+             })
+        }
+        
+        editingLogId.value = null
+        alert("Interacción actualizada")
+    } catch (e) {
+        console.error("Error updating log:", e)
+        alert("Error al actualizar")
+    }
+}
+
 
 onMounted(() => {
     fetchLogs()
@@ -353,4 +457,24 @@ onMounted(() => {
         font-size: 0.9rem; /* Slightly smaller icon on mobile */
     } 
 }
+
+/* Edit Mode Styles */
+.header-right { 
+    display: flex; gap: 8px; align-items: center; 
+}
+.btn-icon-edit {
+    background: none; border: none; cursor: pointer; color: var(--text-muted);
+    font-size: 0.9rem; padding: 4px; transition: color 0.2s;
+}
+.btn-icon-edit:hover { color: var(--primary); }
+
+.mb-2 { margin-bottom: 0.5rem; }
+
+.edit-actions { display: flex; gap: 8px; margin-top: 10px; }
+.btn-save-edit, .btn-cancel-edit {
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; font-weight: 600; font-size: 0.9rem;
+}
+.btn-save-edit { background: var(--primary); color: white; }
+.btn-cancel-edit { background: var(--border-color); color: var(--text-main); }
+
 </style>
