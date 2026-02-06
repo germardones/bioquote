@@ -2,7 +2,7 @@
   <div class="container">
     <div class="header">
       <div class="title-group">
-        <h2><i class="fa-solid fa-user-gear icon-accent"></i> Gestión de Usuarios</h2>
+        <h2> Gestión de Usuarios</h2>
       </div>
       <div class="action-group">
         <button @click="openCreateModal" class="btn-create">

@@ -127,16 +127,24 @@ const fetchLogs = async () => {
   
   loading.value = true
   try {
+    // Note: Removed orderBy to avoid needing a composite index (clientRut + date)
+    // We will sort client-side instead.
     const q = query(
       collection(db, 'crm_interactions'), 
-      where('clientRut', '==', props.clientRut),
-      orderBy('date', 'desc')
+      where('clientRut', '==', props.clientRut)
     )
     const snapshot = await getDocs(q)
-    logs.value = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
+    const fetchedLogs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    
+    // Sort descending by date (Timestamp)
+    logs.value = fetchedLogs.sort((a, b) => {
+        const dateA = a.date && a.date.seconds ? a.date.seconds : 0
+        const dateB = b.date && b.date.seconds ? b.date.seconds : 0
+        return dateB - dateA
+    })
   } catch (e) {
     console.error("Error fetching logs:", e)
-    // If index error, empty list but log to console
   } finally {
     loading.value = false
   }
@@ -206,30 +214,38 @@ onMounted(() => {
 }
 
 .form-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: 10px;
 }
 
 .type-select, .date-input, .summary-input {
-    padding: 8px 12px;
+    width: 100%;
+    padding: 10px;
     border: 1px solid var(--border-color);
     border-radius: 6px;
     background: var(--input-bg);
     color: var(--text-main);
 }
 
-.summary-input { flex: 1; }
+.summary-input { 
+    /* Removed specific flex/min-width as grid handles it */
+    border: 1px solid rgba(255,255,255,0.2); 
+}
 
 .btn-add {
+    width: 100%; /* Full width of grid cell */
+    height: 100%; /* Match height of input */
+    padding: 10px; /* Match padding */
     background: var(--primary);
     color: white;
     border: none;
-    padding: 0 16px;
     border-radius: 6px;
     cursor: pointer;
     font-weight: 600;
     transition: opacity 0.2s;
+    display: flex; justify-content: center; align-items: center; gap: 8px;
 }
 .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -330,7 +346,7 @@ onMounted(() => {
 }
 
 @media (max-width: 640px) {
-    .form-row { flex-direction: column; }
+    .form-row { grid-template-columns: 1fr; }
     .timeline { padding-left: 1.5rem; }
     .timeline-marker { 
         width: 32px; height: 32px; left: -2.1rem; 
