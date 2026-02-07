@@ -42,6 +42,9 @@
                 <button v-if="p.status === 'Draft'" class="btn-icon-edit" title="Editar" @click="editarCotizacion(p)">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
+                <button v-if="p.status === 'Draft'" class="btn-icon-scope" title="Editar Alcances" @click="abrirModalAlcances(p)">
+                    <i class="fa-solid fa-file-contract"></i>
+                </button>
                 <button class="btn-icon-view" title="Ver detalle" @click="verDetalle(p)">
                     <i class="fa-solid fa-eye"></i>
                 </button>
@@ -65,6 +68,13 @@
       <button @click="router.push('/cotizar')" class="btn-crear">Crear Nueva Cotización</button>
     </div>
   </div>
+    <ScopeModal 
+      :show="showScopeModal" 
+      :projectId="selectedProjectId" 
+      @close="showScopeModal = false"
+      @saved="onScopeSaved"
+    />
+
 </template>
 
 <script setup>
@@ -72,6 +82,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase/firebaseConfig'
 import { collection, query, where, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import ScopeModal from '../components/modals/ScopeModal.vue'
 
 const router = useRouter()
 const projects = ref([])
@@ -171,6 +182,18 @@ const verDetalle = (project) => {
 const getStatusClass = (status) => {
     if (!status) return ''
     return status.toLowerCase().replace(/\s+/g, '-')
+}
+// Modal Scope Logic
+const showScopeModal = ref(false)
+const selectedProjectId = ref(null)
+
+const abrirModalAlcances = (project) => {
+    selectedProjectId.value = project.id
+    showScopeModal.value = true
+}
+
+const onScopeSaved = () => {
+    // Optionally refresh project list if needed, but data is fetched on modal open
 }
 </script>
 
@@ -280,7 +303,7 @@ th {
 }
 
 /* Base icon button style */
-.btn-icon-danger, .btn-icon-edit, .btn-icon-view, .btn-icon-success {
+.btn-icon-danger, .btn-icon-edit, .btn-icon-view, .btn-icon-success, .btn-icon-scope {
     width: 32px;
     height: 32px;
     border-radius: 6px;
@@ -291,42 +314,57 @@ th {
     justify-content: center;
     font-size: 0.9rem;
     transition: all 0.2s;
-    background: white;
+    background: transparent; /* Changed from white to transparent for dark mode compat */
+    border: 1px solid var(--border-color); /* Add border for visibility */
 }
 
 .btn-icon-danger {
     color: #ef4444;
-    border-color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.1);
 }
 .btn-icon-danger:hover {
-    background-color: #fef2f2;
+    background-color: rgba(239, 68, 68, 0.2);
     transform: scale(1.05);
 }
 
 .btn-icon-edit {
     color: #f59e0b;
-    border-color: #fcd34d;
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.1);
 }
 .btn-icon-edit:hover {
-    background-color: #fffbeb;
+    background-color: rgba(245, 158, 11, 0.2);
     transform: scale(1.05);
 }
 
 .btn-icon-view {
     color: #3b82f6;
-    border-color: #93c5fd;
+    border-color: rgba(59, 130, 246, 0.3);
+    background: rgba(59, 130, 246, 0.1);
 }
 .btn-icon-view:hover {
-    background-color: #eff6ff;
+    background-color: rgba(59, 130, 246, 0.2);
     transform: scale(1.05);
 }
 
 .btn-icon-success {
     color: #10b981;
-    border-color: #6ee7b7;
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(16, 185, 129, 0.1);
 }
 .btn-icon-success:hover {
-    background-color: #ecfdf5;
+    background-color: rgba(16, 185, 129, 0.2);
+    transform: scale(1.05);
+}
+
+.btn-icon-scope {
+    color: #8b5cf6;
+    border-color: rgba(139, 92, 246, 0.3);
+    background: rgba(139, 92, 246, 0.1);
+}
+.btn-icon-scope:hover {
+    background-color: rgba(139, 92, 246, 0.2);
     transform: scale(1.05);
 }
 

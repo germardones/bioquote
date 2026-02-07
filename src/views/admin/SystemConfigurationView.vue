@@ -24,6 +24,7 @@
             <button :class="{ active: activeTab === 'general' }" @click="activeTab = 'general'">
                 <i class="fa-solid fa-sliders"></i> General
             </button>
+
         </div>
 
         <!-- TAB: SPECS -->
@@ -178,6 +179,8 @@ onMounted(async () => {
     localSettings.matrix = JSON.parse(JSON.stringify(settings.value.matrix))
     localSettings.discounts = JSON.parse(JSON.stringify(settings.value.discounts || []))
     localSettings.rates = JSON.parse(JSON.stringify(settings.value.rates))
+    // Defaults if missing
+
 })
 
 const addSpec = () => {
@@ -294,11 +297,13 @@ const guardarCambios = async () => {
 .field-group.grow { flex: 1; }
 .field-group.short { width: 80px; }
 
-input, select {
+input, select, textarea {
     width: 100%; padding: 8px; border-radius: 6px;
     border: 1px solid var(--border-color);
     background: var(--input-bg); color: var(--text-main);
+    font-family: inherit;
 }
+.mt-4 { margin-top: 1.5rem; }
 
 .btn-delete {
     background: none; border: none; color: #ef4444;

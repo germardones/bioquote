@@ -43,7 +43,10 @@ export const useQuotationStore = defineStore('quotation', {
       razonSocial: '',
       rut: '',
       servicioDeseado: ''
-    }
+    },
+    // Alcance y Condiciones
+    scopeOfService: '',
+    exclusions: ''
   }),
   getters: {
     // Cálculo de horas mercado
@@ -176,6 +179,9 @@ export const useQuotationStore = defineStore('quotation', {
         rut: '',
         servicioDeseado: ''
       }
+      // Strategy: Initialize empty here, and let the component (NewQuotation or StepScope) populate ONLY IF empty.
+      this.scopeOfService = ''
+      this.exclusions = ''
       this.selectedDiscount = null
     },
     setDiscount(discount) {

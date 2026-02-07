@@ -206,7 +206,12 @@ const guardarProyecto = async () => {
         role_count: store.specs.roles,
         view_count: store.specs.vistas,
         api_count: store.specs.apis,
-        complexity: store.specs.complejidad
+        api_count: store.specs.apis,
+        complexity: store.specs.complejidad,
+        scope: {
+          included: store.scopeOfService || '',
+          excluded: store.exclusions || ''
+        }
       },
 
       // Financials (Add discount details)
