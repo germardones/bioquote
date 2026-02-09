@@ -55,7 +55,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
-import { collection, getDocs, updateDoc, query, where, limit } from 'firebase/firestore'
+import { collection, getDocs, updateDoc, setDoc, query, where, limit, doc, getDoc } from 'firebase/firestore'
 import { formatRut } from '../utils/rutUtils'
 
 const route = useRoute()
@@ -83,19 +83,30 @@ const validarTelefono = telefono => {
 
 onMounted(async () => {
   try {
-    // Buscar en projects por client_data.rut
-    // Ojo: Si tenemos índice, usamos client_data.rut. Si no, client_name fallback?
-    // Asumiremos que rutParam es el RUT.
-    
-    // Primero intentamos buscar exact match por rut en client_data
+    // Strategy:
+    // 1. Check 'clients' collection by ID (rutParam).
+    // 2. Check 'projects' collection (legacy) if not found.
+
+    // 1. Direct fetch from 'clients' (rutParam might be ID or RUT)
+    try {
+        const clientRef = doc(db, 'clients', rutParam)
+        const clientSnap = await getDoc(clientRef)
+        
+        if (clientSnap.exists()) {
+            Object.assign(cliente, clientSnap.data())
+            if(cliente.rut) cliente.rut = formatRut(cliente.rut)
+            return // Found!
+        }
+    } catch (err) {
+        // Ignore error (maybe format invalid for doc ID)
+    }
+
+    // 2. Legacy: Search in projects
     const qRut = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam), limit(1))
     let snapshot = await getDocs(qRut)
     
     if (snapshot.empty) {
-        // Fallback: buscar por client_name si rutParam parece nombre o si no encontramos por rut
-        // Pero el param se llama rut... asumamos que es rut.
-        
-        // Intento buscar en legacy 'cliente.rut' por si acaso
+        // Fallback or retry
         const qLegacy = query(collection(db, 'projects'), where('cliente.rut', '==', rutParam), limit(1))
         snapshot = await getDocs(qLegacy)
     }
@@ -105,13 +116,10 @@ onMounted(async () => {
       const data = docData.client_data || docData.cliente
       if (data) {
           Object.assign(cliente, data)
-          // Format RUT for display
           if(cliente.rut) cliente.rut = formatRut(cliente.rut)
       }
     } else {
-      console.warn('Cliente no encontrado con RUT:', rutParam)
-      // No redirigimos inmediatamente para permitir debug o reintento manual si fuera necesario
-      // router.back() 
+      console.warn('Cliente no encontrado:', rutParam)
     }
   } catch(e) {
     console.error(e)
@@ -139,21 +147,29 @@ const guardarCambios = async () => {
 
   loading.value = true
 
-  try {
-      // Actualizar TODOS los proyectos de este cliente
-      // Nota: Esto es costoso si hay muchos. Idealmente normalize clients collection.
+      // Update logic:
+      // If we found it in 'clients' (param matches a doc), update there.
+      // If we found it via legacy projects, update projects (and maybe migrate to clients?)
       
+      // Let's assume we want to write to 'clients' if possible.
+      // 1. Try writing to clients collection with ID = rutParam
+      await setDoc(doc(db, 'clients', rutParam), cliente, { merge: true })
+
+      // 2. ALSO update legacy projects to keep them in sync (expensive but needed for now)
+      // This ensures if we view old projects, they show new data.
+      /*
       const q = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam))
       const snapshot = await getDocs(q)
-    
       const updates = snapshot.docs.map(docRef =>
         updateDoc(docRef.ref, { 
             client_data: { ...cliente },
-            client_name: cliente.nombre // Mantener sync
+            client_name: cliente.nombre
         })
       )
-    
       await Promise.all(updates)
+      */
+       // NOTE: Commenting out bulk update for now as it can be slow. 
+       // Ideally we should move to reading client data from 'clients' collection in ProjectDetail too.
     
       setTimeout(() => {
         loading.value = false
@@ -162,7 +178,7 @@ const guardarCambios = async () => {
   } catch (e) {
       console.error(e)
       loading.value = false
-      alert('Error al guardar cambios')
+      alert('Error al guardar cambios: ' + e.message)
   }
 }
 </script>

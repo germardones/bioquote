@@ -144,18 +144,29 @@ const handleBlur = () => {
 
 const guardarYContinuar = () => {
   errores.nombre = !cliente.nombre ? 'El nombre es obligatorio.' : ''
-  errores.razonSocial = !cliente.razonSocial ? 'La razón social es obligatoria.' : ''
-  errores.rut = cliente.rut && !validarRut(cliente.rut)
-    ? 'Formato de RUT no válido. Ej: 12.345.678-9'
-    : ''
-  errores.email = !cliente.email
-    ? 'El correo electrónico es obligatorio.'
-    : !validarEmail(cliente.email)
-      ? 'Correo electrónico no válido.'
-      : ''
-  errores.contacto = cliente.contacto && !validarTelefono(cliente.contacto)
-    ? 'Número de contacto no válido (debe tener entre 9 y 12 dígitos).'
-    : ''
+  // Relaxed validation: RUT, Reason, Email, Phone are optional
+  // If provided, we still validate format though
+  
+  if (cliente.rut && !validarRut(cliente.rut)) {
+      errores.rut = 'Formato de RUT no válido. Ej: 12.345.678-9'
+  } else {
+      errores.rut = ''
+  }
+
+  if (cliente.email && !validarEmail(cliente.email)) {
+      errores.email = 'Correo electrónico no válido.'
+  } else {
+      errores.email = ''
+  }
+
+  if (cliente.contacto && !validarTelefono(cliente.contacto)) {
+      errores.contacto = 'Número de contacto no válido (debe tener entre 9 y 12 dígitos).'
+  } else {
+      errores.contacto = ''
+  }
+  
+  // Clear other errors
+  errores.razonSocial = '' 
 
   const hayErrores = Object.values(errores).some(Boolean)
   if (hayErrores) return

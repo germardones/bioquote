@@ -95,13 +95,16 @@ const fetchClients = async () => {
         // Fetch from 'clients' collection first (preferred source of truth now)
         const clientsSnapshot = await getDocs(collection(db, 'clients'))
         const existingRuts = new Set()
+        const existingIds = new Set()
         
         clientsSnapshot.forEach(doc => {
             const data = doc.data()
-            if (data.rut) {
+            data.id = doc.id // Store Firestore Doc ID
+            existingIds.add(doc.id)
+            if (data.rut && data.rut !== 'N/D') {
                 existingRuts.add(data.rut)
-                clientes.value.push(data)
             }
+            clientes.value.push(data)
         })
 
         // Fetch from projects for legacy/implicit clients not yet in 'clients'
@@ -111,16 +114,16 @@ const fetchClients = async () => {
             const p = doc.data()
             const data = p.client_data || p.cliente
             
-            if (data && data.rut && !existingRuts.has(data.rut)) {
-                existingRuts.add(data.rut)
-                clientes.value.push(data)
-            } else if (!data && p.client_name) {
-                if (!existingRuts.has(p.client_name)) { // Use name as key if no rut
-                     // Check again if we haven't added this name as a "rut" placeholder
-                     const pseudoRut = 'N/D'
-                     // Actually let's just push generic if name unique
-                     // Simplification: just show what we have, deduplication is hard without ID
-                }
+            if (data) {
+                // If we have a RUT and it's not in our list, add it
+                if (data.rut && !existingRuts.has(data.rut)) {
+                    existingRuts.add(data.rut)
+                    data.id = data.rut // Legacy: use RUT as ID
+                    clientes.value.push(data)
+                } 
+                // If no RUT but unique Name? 
+                // Skip for now to avoid duplicates, unless we want to show everything.
+                // Focusing on migrated clients + valid ruts.
             }
         })
         
@@ -145,31 +148,47 @@ const filteredClientes = computed(() => {
 })
 
 const editarCliente = (cliente) => {
-    if(cliente.rut === 'N/D') {
-        alert("Este cliente no tiene RUT válido para gestión detallada.")
-        return
+    // Navigate using ID if available, otherwise RUT
+    // CRMClientDetail/EditClientView usually takes a param named 'rut'
+    // We will update EditClientView to handle this param as ID or RUT
+    const identifier = cliente.id || cliente.rut
+    if (!identifier || identifier === 'N/D') {
+         // Should not happen if we assign ID
+         console.warn("No identifier for client", cliente)
+         return
     }
-    router.push({ name: 'CRMClientDetail', params: { rut: cliente.rut } })
+    router.push({ name: 'CRMClientDetail', params: { rut: identifier } })
 }
 
 const handleSaveClient = async (clientData) => {
-    if (!clientData.rut) return
     savingClient.value = true
     try {
-        // Use RUT as Document ID for uniqueness/easy lookup
-        await setDoc(doc(db, 'clients', clientData.rut), clientData, { merge: true })
+        let docId = clientData.rut
+        
+        if (!docId) {
+            // No RUT provided. Generate a new ID.
+            const newDocRef = doc(collection(db, 'clients'))
+            docId = newDocRef.id
+            clientData.rut = 'N/D' // Mark as No Data
+            clientData.id = docId
+        }
+
+        // Use docId (either RUT or generated)
+        await setDoc(doc(db, 'clients', docId), clientData, { merge: true })
         
         // Refresh or add locally
-        const idx = clientes.value.findIndex(c => c.rut === clientData.rut)
+        // Check if exists by ID or RUT
+        const idx = clientes.value.findIndex(c => c.id === docId || (c.rut && c.rut === clientData.rut))
+        
         if (idx >= 0) {
-            clientes.value[idx] = clientData
+            clientes.value[idx] = { ...clientes.value[idx], ...clientData, id: docId }
         } else {
+            clientData.id = docId
             clientes.value.push(clientData)
             clientes.value.sort((a,b) => a.nombre.localeCompare(b.nombre))
         }
         
         showModal.value = false
-        // Optional: Navigate to detail?
     } catch (error) {
         console.error("Error saving client:", error)
         alert("Error al guardar cliente: " + error.message)

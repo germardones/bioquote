@@ -59,8 +59,8 @@
 
            <div class="field">
              <label>RUT</label>
-             <input v-model="cliente.rut" type="text" disabled />
-             <small>El RUT no se puede modificar.</small>
+             <input v-model="cliente.rut" type="text" @input="cliente.rut = formatRut($event.target.value)" />
+             <small class="warning-text"><i class="fa-solid fa-lock"></i> Acción Sensible: Se pedirá confirmación al cambiar.</small>
            </div>
            
            <div class="field">
@@ -134,6 +134,16 @@
       </div>
 
     </div>
+
+     
+     <ConfirmationModal
+        v-if="showConfirmModal"
+        title="Modificar RUT de Cliente"
+        message="Estás a punto de modificar el RUT de este cliente. Esta es una acción sensible que actualizará todos los registros históricos y proyectos asociados.<br><br><b>¿Estás seguro de que quieres proceder?</b>"
+        verificationText="CONFIRMAR"
+        @close="showConfirmModal = false"
+        @confirm="confirmSave"
+     />
   </div>
 </template>
 
@@ -141,8 +151,10 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../../firebase/firebaseConfig'
-import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, updateDoc, setDoc, query, where, limit } from 'firebase/firestore'
+import { formatRut, validateRut } from '../../utils/rutUtils'
 import HistoryTimeline from '../../components/crm/HistoryTimeline.vue'
+import ConfirmationModal from '../../components/ConfirmationModal.vue'
 
 
 const route = useRoute()
@@ -152,6 +164,7 @@ const rutParam = route.params.rut
 const activeTab = ref('profile')
 const loading = ref(false)
 const loadingProjects = ref(false)
+const showConfirmModal = ref(false)
 
 const cliente = reactive({
     nombre: '',
@@ -162,6 +175,7 @@ const cliente = reactive({
     razonSocial: '',
     pipeline_stage: 'lead'
 })
+const originalRut = ref('') // Track original RUT for security check
 // Fallback to local definition to fix crash
 const pipelineStages = [
     { value: 'lead', label: 'Identificado (Lead)' },
@@ -215,47 +229,111 @@ const formatCurrency = (val) => '$' + (val || 0).toLocaleString('es-CL')
 // Fetch Client Data
 onMounted(async () => {
     if (!rutParam) return
+    loading.value = true
     
-    // Fetch Cliente (from any project that has it)
     try {
-        let q = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam))
-        let snapshot = await getDocs(q)
+        let foundClient = null
+
+        // 1. Intentar buscar por ID en colección 'clients'
+        // Esto cubre RUTs y IDs generados
+        const docRef = doc(db, 'clients', rutParam)
+        const docSnap = await getDoc(docRef)
         
-        // Fallback to legacy 'cliente.rut'
-        if (snapshot.empty) {
-            console.warn("Cliente no encontrado en estructura nueva, buscando legacy...")
-            q = query(collection(db, 'projects'), where('cliente.rut', '==', rutParam))
-            snapshot = await getDocs(q)
-        }
-        
-        if (!snapshot.empty) {
-            // Fill client data from first match
-            // Handle both structures
-            const docData = snapshot.docs[0].data()
-            const data = docData.client_data || docData.cliente
-            
-            if (data) Object.assign(cliente, data)
-            
-            // Fill projects list
-            projects.value = snapshot.docs.map(d => {
-                const p = d.data()
-                const paid = (p.payments || []).reduce((sum, pay) => sum + Number(pay.amount), 0)
-                
-                return { 
-                    id: d.id, 
-                    ...p,
-                    total: calculateTotal(p), // Ensure total is calculated
-                    paidAmount: paid
-                }
-            })
-            proyectosRaw.value = snapshot.docs // Keep ref to docs for update
+        if (docSnap.exists()) {
+            foundClient = { ...docSnap.data(), id: docSnap.id }
         } else {
-             console.warn("Cliente no encontrado definitivamente.")
+            // 2. Si no es ID, intentar buscar por campo 'rut' en 'clients'
+            const qRut = query(collection(db, 'clients'), where('rut', '==', rutParam), limit(1))
+            const sRut = await getDocs(qRut)
+            if (!sRut.empty) {
+                const d = sRut.docs[0]
+                foundClient = { ...d.data(), id: d.id }
+            }
+        }
+
+        // Si encontramos en 'clients', usamos eso
+        if (foundClient) {
+            Object.assign(cliente, foundClient)
+            // Cargar proyectos asociados (usando RUT si existe, o ID si no)
+            // La mayoría de proyectos tienen 'client_data.rut' por lo que preferimos RUT si existe
+            const identifier = foundClient.rut && foundClient.rut !== 'N/D' ? foundClient.rut : foundClient.id
+            originalRut.value = cliente.rut // Capture original
+            if (identifier) await loadProjects(identifier)
+        } else {
+            // 3. Fallback Legacy: Buscar en 'projects' collection
+            console.warn("Cliente no encontrado en 'clients', buscando en legacy projects...")
+            
+            // Intentar por client_data.rut
+            let q = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam))
+            let snapshot = await getDocs(q)
+            
+            // Intentar por cliente.rut (muy antiguo)
+            if (snapshot.empty) {
+                q = query(collection(db, 'projects'), where('cliente.rut', '==', rutParam))
+                snapshot = await getDocs(q)
+            }
+            
+            if (!snapshot.empty) {
+                // Encontrado en proyecto. Usar datos del primer proyecto.
+                const docData = snapshot.docs[0].data()
+                const data = docData.client_data || docData.cliente
+                if (data) Object.assign(cliente, data)
+                originalRut.value = cliente.rut // Capture original
+                
+                // Cargar la lista de proyectos (ya tenemos snapshot, pero loadProjects normaliza)
+                await loadProjects(rutParam)
+            } else {
+                console.warn("Cliente no encontrado definitivamente.")
+            }
         }
     } catch (e) {
         console.error("Error loading client:", e)
+    } finally {
+        loading.value = false
     }
 })
+
+// Helper to load projects list
+const loadProjects = async (identifier) => {
+    loadingProjects.value = true
+    try {
+        // Query projects by client_data.rut or cliente.rut
+        // We will combine results or prioritize client_data
+        const q1 = query(collection(db, 'projects'), where('client_data.rut', '==', identifier))
+        const s1 = await getDocs(q1)
+        
+        // Also check legacy path
+        const q2 = query(collection(db, 'projects'), where('cliente.rut', '==', identifier))
+        const s2 = await getDocs(q2)
+        
+        // Merge unique docs
+        const uniqueDocs = new Map()
+        s1.docs.forEach(d => uniqueDocs.set(d.id, d))
+        s2.docs.forEach(d => uniqueDocs.set(d.id, d))
+        
+        projects.value = Array.from(uniqueDocs.values()).map(d => {
+            const p = d.data()
+            const paid = (p.payments || []).reduce((sum, pay) => sum + Number(pay.amount), 0)
+            return { 
+                id: d.id, 
+                ...p,
+                total: calculateTotal(p),
+                paidAmount: paid
+            }
+        })
+        // Sort by created_at desc
+        projects.value.sort((a,b) => {
+             const da = a.created_at ? (a.created_at.toDate ? a.created_at.toDate() : new Date(a.created_at)) : 0
+             const db = b.created_at ? (b.created_at.toDate ? b.created_at.toDate() : new Date(b.created_at)) : 0
+             return db - da
+        })
+        
+    } catch(e) {
+        console.error("Error loading projects:", e)
+    } finally {
+        loadingProjects.value = false
+    }
+}
 
 const guardarCambios = async () => {
     loading.value = true
@@ -267,16 +345,45 @@ const guardarCambios = async () => {
         return
     }
 
+    // RUT Change Security Check
+    if (cliente.rut !== originalRut.value) {
+        // Validate format first
+        if (!validateRut(cliente.rut) && cliente.rut !== 'N/D') {
+            alert("El formato del nuevo RUT es inválido. Por favor corrígelo antes de guardar.")
+            loading.value = false
+            return
+        }
+
+        // Trigger Modal
+        showConfirmModal.value = true
+        loading.value = false // Stop loading spinner while waiting for confirmation
+        return
+    }
+
+    // If no sensitive change, proceed directly
+    await processSave()
+}
+
+const confirmSave = async () => {
+    showConfirmModal.value = false
+    await processSave()
+}
+
+const processSave = async () => {
+    loading.value = true
     try {
         // Update ALL projects for this client
         // Need to handle both legacy and new fields query to ensure we cover all docs
         
-        // 1. Find docs with client_data.rut
-        const q1 = query(collection(db, 'projects'), where('client_data.rut', '==', rutParam))
+        // 1. Find docs with client_data.rut (using ORIGINAL rut or param)
+        // Ensure we search by the OLD identifier to find the projects to update
+        const searchRut = originalRut.value || rutParam
+        
+        const q1 = query(collection(db, 'projects'), where('client_data.rut', '==', searchRut))
         const s1 = await getDocs(q1)
         
         // 2. Find docs with cliente.rut (Legacy)
-        const q2 = query(collection(db, 'projects'), where('cliente.rut', '==', rutParam))
+        const q2 = query(collection(db, 'projects'), where('cliente.rut', '==', searchRut))
         const s2 = await getDocs(q2)
         
         // Combine unique docs
@@ -295,18 +402,29 @@ const guardarCambios = async () => {
             return updateDoc(d.ref, {
                 client_data: dataToSave, // Always save to new structure
                 client_name: cliente.nombre  // Keep sync
-                // We don't delete 'cliente' legacy field to avoid breaking other things, but we rely on client_data going forward
             })
         })
         
+        // Also update 'clients' collection if it exists there
+        // If we found it by ID
+        if (cliente.id && !cliente.id.startsWith('legacy_')) {
+             const clientRef = doc(db, 'clients', cliente.id)
+             updates.push(updateDoc(clientRef, { ...cliente }))
+        } else if (cliente.rut && cliente.rut !== 'N/D') {
+             // If legacy, maybe create in clients?
+             // For now let's just create/merge to ensure it exists in new structure
+             updates.push(setDoc(doc(db, 'clients', cliente.rut), { ...cliente }, { merge: true }))
+        }
+        
         await Promise.all(updates)
+        
+        // Update state
+        originalRut.value = cliente.rut
         alert("Cliente actualizado correctamente")
         
-        // Refetch to ensure UI is consistent? 
-        // Or just rely on local state which is already updated.
     } catch (e) {
         console.error(e)
-        alert("Error al guardar")
+        alert("Error al guardar: " + e.message)
     } finally {
         loading.value = false
     }
