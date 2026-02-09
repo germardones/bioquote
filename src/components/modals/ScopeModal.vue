@@ -154,6 +154,16 @@ const close = () => {
   border: 1px solid var(--border-color);
 }
 
+@media (max-width: 640px) {
+  .modal-content {
+    width: 95%;
+    max-height: 95vh;
+  }
+  .modal-header, .modal-body, .modal-footer {
+    padding: 1rem;
+  }
+}
+
 .modal-header {
   padding: 1.5rem;
   border-bottom: 1px solid var(--border-color);

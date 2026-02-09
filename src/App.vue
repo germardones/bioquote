@@ -99,6 +99,26 @@ const cerrarSesion = async () => {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: wrap; /* Allow wrapping */
+}
+
+/* Mobile Header Adjustments */
+@media (max-width: 640px) {
+  .header-content {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .logo-group {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: center;
+    gap: 0.5rem;
+  }
 }
 
 .logo-group {

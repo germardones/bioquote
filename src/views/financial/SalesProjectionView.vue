@@ -54,14 +54,14 @@
                         </thead>
                         <tbody>
                             <tr v-for="p in detailData.projection" :key="p.id">
-                                <td>{{ formatDate(p.date) }}</td>
-                                <td><span class="code">{{ p.codigo }}</span></td>
-                                <td>{{ p.name }}</td>
-                                <td>{{ p.client }}</td>
-                                <td>
+                                <td data-label="Fecha">{{ formatDate(p.date) }}</td>
+                                <td data-label="Código"><span class="code">{{ p.codigo }}</span></td>
+                                <td data-label="Proyecto">{{ p.name }}</td>
+                                <td data-label="Cliente">{{ p.client }}</td>
+                                <td data-label="Estado">
                                     <span class="badge-status" :class="p.statusClass">{{ p.status }}</span>
                                 </td>
-                                <td class="text-right">{{ formatCurrency(p.total) }}</td>
+                                <td class="text-right" data-label="Monto">{{ formatCurrency(p.total) }}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -147,4 +147,41 @@ onMounted(() => {
   .summary-card { flex-direction: column; text-align: center; }
   .info { align-items: center; }
   .projection-view { padding: 1rem; }
+
+  /* Table to Cards */
+  .details-table { min-width: 100%; } /* Override min-width */
+  .details-table, .details-table thead, .details-table tbody, .details-table th, .details-table td, .details-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .details-table thead { display: none; }
+
+  .details-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    background: var(--bg-surface);
+  }
+
+  .details-table td {
+    border: none;
+    padding: 0.5rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .details-table td:last-child { border-bottom: none; }
+
+  .details-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+  }
 }</style>

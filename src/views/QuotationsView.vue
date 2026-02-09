@@ -27,15 +27,15 @@
           </thead>
           <tbody>
             <tr v-for="p in projects" :key="p.id">
-              <td><span class="badge-code">{{ p.codigo }}</span></td>
-              <td>{{ p.client_name }}</td>
-              <td>{{ p.name }}</td>
-              <td>{{ formatFecha(p.created_at) }}</td>
-              <td class="monto">${{ (p.financials?.quoted_price || 0).toLocaleString() }}</td>
-              <td>
+              <td data-label="Código"><span class="badge-code">{{ p.codigo }}</span></td>
+              <td data-label="Cliente">{{ p.client_name }}</td>
+              <td data-label="Proyecto">{{ p.name }}</td>
+              <td data-label="Fecha">{{ formatFecha(p.created_at) }}</td>
+              <td data-label="Monto Base" class="monto">${{ (p.financials?.quoted_price || 0).toLocaleString() }}</td>
+              <td data-label="Estado">
                 <span class="badge-status" :class="getStatusClass(p.status)">{{ p.status }}</span>
               </td>
-              <td class="actions-cell">
+              <td data-label="Acciones" class="actions-cell">
                 <button class="btn-icon-danger" title="Eliminar" @click="eliminarCotizacion(p)">
                     <i class="fa-solid fa-trash"></i>
                 </button>
@@ -378,9 +378,65 @@ th {
   color: var(--text-muted);
 }
 
-@media (max-width: 640px) {
+/* Responsive Table to Cards */
+@media (max-width: 768px) {
   .container { padding: 1rem; }
   .header { flex-direction: column; align-items: stretch; gap: 1rem; }
   .btn-volver { width: 100%; }
+
+  .projects-table, .projects-table tbody, .projects-table tr, .projects-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .projects-table thead {
+    display: none;
+  }
+
+  .projects-table tr {
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 1rem;
+    background: var(--bg-surface);
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  
+  .projects-table tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .projects-table td {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    text-align: right;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .projects-table td:last-child {
+    border-bottom: none;
+  }
+
+  .projects-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 1rem;
+    text-align: left;
+  }
+
+  /* Specific adjustments for cells */
+  .badge-code {
+    display: inline-block;
+  }
+
+  .actions-cell {
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
 }
 </style>

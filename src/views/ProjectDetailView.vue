@@ -338,4 +338,21 @@ const getStatusClass = (status) => {
     color: var(--text-muted);
     margin-right: 0.5rem;
 }
+
+@media (max-width: 480px) {
+    .spec-item.row-layout {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .spec-item.row-layout .vals {
+        align-self: flex-end; /* Align values to right still, or start? Let's keep right or make full width */
+        text-align: right;
+        width: 100%;
+        margin-top: 4px;
+        padding-top: 4px;
+        border-top: 1px dashed var(--border-color);
+    }
+}
 </style>

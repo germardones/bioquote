@@ -36,7 +36,7 @@
                 </td>
             </tr>
             <tr v-for="cliente in filteredClientes" :key="cliente.rut">
-              <td>
+              <td data-label="Cliente">
                   <div class="client-info">
                       <span class="c-name">{{ cliente.nombre }}</span>
                       <span class="c-razon" v-if="cliente.razonSocial && cliente.razonSocial !== cliente.nombre">
@@ -44,10 +44,10 @@
                       </span>
                   </div>
               </td>
-              <td>
+              <td data-label="RUT">
                   <span class="rut-badge">{{ cliente.rut }}</span>
               </td>
-              <td class="text-right">
+              <td class="text-right" data-label="Acciones">
                 <button class="btn-action" @click="editarCliente(cliente)" title="Ver Detalle">
                     <span>Gestionar</span> <i class="fa-solid fa-chevron-right"></i>
                 </button>
@@ -279,5 +279,57 @@ const editarCliente = (cliente) => {
   .header { flex-direction: column; align-items: stretch; }
   .search-box { width: 100%; }
   .modern-table th, .modern-table td { padding: 1rem; }
+
+  /* Table to Cards */
+  .modern-table, .modern-table thead, .modern-table tbody, .modern-table th, .modern-table td, .modern-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .modern-table thead { display: none; }
+
+  .modern-table tr {
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    background: var(--bg-surface);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  }
+
+  .modern-table td {
+    border: none;
+    padding: 0.75rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .modern-table td:last-child {
+      border-bottom: none;
+  }
+  
+  .modern-table td:first-child {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+  }
+
+  .modern-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+    margin-right: auto; /* Push content to right, label to left */
+  }
+  
+  /* Hide label for first child if it's the main title or handle differently */
+  .modern-table td:first-child::before {
+      margin-bottom: 4px;
+  }
 }
 </style>

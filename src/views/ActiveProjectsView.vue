@@ -411,12 +411,21 @@ const eliminarProyecto = async (project) => {
   .actions-col {
     width: 100%;
     margin-left: 0;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
+    display: flex;
+    justify-content: space-between; /* Spread buttons evenly */
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color); /* Separator */
   }
 
-  .btn-primary {
-    width: 100%;
-    justify-content: center;
+  /* Reset button widths to be consistent icons */
+  .btn-primary, .btn-revert, .btn-icon-danger, .btn-icon-success {
+    width: 100%; /* Make them flexible but equal? or fixed? */
+    flex: 1;
+    height: 40px;
+    border-radius: 8px;
+    font-size: 1.2rem;
   }
 }
 </style>

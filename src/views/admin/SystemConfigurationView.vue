@@ -323,8 +323,100 @@ input, select, textarea {
 .btn-save:disabled { opacity: 0.7; cursor: not-allowed; }
 
 @media(max-width: 768px) {
-    .spec-item, .matrix-item { flex-direction: column; align-items: stretch; }
-    .spec-fields { flex-direction: column; }
-    .field-group { width: 100%; }
+    .config-view { 
+        padding: 1rem; 
+        padding-bottom: 6rem; 
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+    
+    .header { flex-direction: column; align-items: stretch; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .header h1 { font-size: 1.5rem; margin: 0; text-align: center; }
+    .btn-back { margin-bottom: 0; justify-content: center; width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 6px; }
+    
+    /* Scrollable Tabs - Boxed Layout */
+    .tabs {
+        display: flex;
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+        -webkit-overflow-scrolling: touch;
+        gap: 0.5rem;
+        border-bottom: none;
+        max-width: 100%; /* Ensure it respects container */
+        width: 100%;
+    }
+    .tabs button {
+        flex: 0 0 auto;
+        padding: 8px 16px;
+        font-size: 0.9rem;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        margin-bottom: 4px; /* Space for shadow */
+    }
+    .tabs button.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    
+    .card { padding: 1rem; overflow: hidden; /* Prevent internal content overflow */ }
+    .card-header { flex-direction: column; align-items: stretch; gap: 1rem; margin-bottom: 1.5rem; }
+    .card-header h2 { font-size: 1.25rem; margin: 0; text-align: center; line-height: 1.3; }
+    .btn-add { width: 100%; text-align: center; padding: 10px; }
+
+    /* Form Stacking */
+    .spec-item, .matrix-item { 
+        flex-direction: column; 
+        align-items: stretch; 
+        gap: 1.25rem;
+        position: relative;
+        padding-top: 2.5rem; /* Space for delete handle */
+    }
+
+    /* Drag handle top left, delete top right */
+    .drag-handle {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+    }
+    
+    .btn-delete {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: auto;
+        border: none;
+        margin-top: 0;
+        background: rgba(239, 68, 68, 0.1);
+        width: 32px;
+        height: 32px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 50%;
+    }
+
+    .spec-fields, .field-group { 
+        flex-direction: column; 
+        width: 100%; 
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .field-group.short, .field-group.grow { width: 100%; }
+    
+    .save-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-surface);
+        padding: 1rem;
+        box-shadow: 0 -4px 12px rgba(0,0,0,0.15);
+        z-index: 999;
+        margin: 0;
+    }
+    .btn-save { width: 100%; }
 }
 </style>

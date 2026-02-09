@@ -29,37 +29,37 @@
                 </thead>
                 <tbody>
                     <tr v-for="lead in processedLeads" :key="lead.rut">
-                        <td>
+                        <td data-label="Cliente">
                             <div class="client-info">
                                 <span class="tk-name">{{ lead.nombre }}</span>
                                 <span class="tk-rut">{{ lead.rut }}</span>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Etapa Actual">
                             <span class="stage-badge" :class="lead.pipeline_stage">
                                 {{ getStageLabel(lead.pipeline_stage) }}
                             </span>
                         </td>
-                        <td>{{ formatDate(lead.lead_start_date) }}</td>
-                        <td>
+                        <td data-label="Inicio Lead">{{ formatDate(lead.lead_start_date) }}</td>
+                        <td data-label="Días Activo">
                             <span class="days-count">{{ lead.daysActive }} días</span>
                         </td>
-                        <td>
+                        <td data-label="Última Acción">
                             <div v-if="lead.last_interaction_date">
                                 {{ formatDate(lead.last_interaction_date) }}
                                 <span class="ago">({{ lead.daysSinceAction }}d atrás)</span>
                             </div>
                             <span v-else class="text-muted">Sin historial</span>
                         </td>
-                        <td>
+                        <td data-label="Estado Matriz">
                             <span class="status-indicator" :class="lead.matrixStatus.color">
                                 <i :class="lead.matrixStatus.icon"></i> {{ lead.matrixStatus.text }}
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Acción Sugerida">
                             <span class="action-hint">{{ lead.matrixStatus.action }}</span>
                         </td>
-                        <td>
+                        <td data-label="Link">
                             <button class="btn-go" @click="goToClient(lead.rut)">
                                 <i class="fa-solid fa-arrow-right"></i>
                             </button>
@@ -368,6 +368,52 @@ th {
 
 @media (max-width: 768px) {
     .followup-view { padding: 1rem; }
-    th, td { padding: 0.75rem 0.5rem; font-size: 0.85rem; }
+    .header { flex-direction: column; align-items: flex-start; gap: 1rem; }
+    
+    .table-responsive {
+        border: none;
+        box-shadow: none;
+        background: transparent;
+        overflow: visible;
+    }
+
+    table, thead, tbody, th, td, tr {
+        display: block;
+        width: 100%;
+    }
+
+    thead { display: none; }
+
+    tr {
+        margin-bottom: 1rem;
+        background: var(--bg-surface);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: var(--shadow);
+    }
+
+    td {
+        border: none;
+        padding: 0.5rem 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    td:last-child { border-bottom: none; }
+
+    td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        text-align: left;
+        margin-right: 1rem;
+    }
+
+    .client-info { align-items: flex-end; text-align: right; }
 }
 </style>

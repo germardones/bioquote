@@ -537,4 +537,53 @@ input[type=range]:disabled {
 .execution-list {
     width: 100%;
 }
+
+@media (max-width: 768px) {
+    .container { padding: 1rem; }
+    
+    .item-card {
+        padding: 1rem;
+        gap: 1.5rem;
+    }
+
+    /* Force full width vertical stacking */
+    .card-left, .card-center, .card-right {
+        flex: 1 1 100%;
+        min-width: 0; /* Allow shrinking below previous min-width */
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .card-center, .card-right {
+        align-items: stretch; /* Full width children */
+    }
+
+    .dates-input {
+        width: 100%;
+    }
+    
+    .dates-input input {
+        flex: 1;
+        width: 100%; /* Ensure inputs take available space */
+    }
+
+    .progress-group {
+        width: 100%;
+        align-items: flex-start;
+    }
+    
+    .progress-wrapper {
+        width: 100%;
+    }
+    
+    .progress-wrapper input[type=range] {
+        flex: 1;
+    }
+
+    .actions-group {
+        width: 100%;
+        justify-content: space-between;
+        margin-left: 0;
+    }
+}
 </style>
