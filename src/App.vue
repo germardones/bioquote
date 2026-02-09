@@ -31,6 +31,14 @@
       <p>© {{ new Date().getFullYear() }} BioBio Code - Todos los derechos reservados.</p>
       <p>Contacto: contacto@biobiocode.cl</p>
     </footer>
+
+    <!-- Global Alert Modal -->
+    <AlertModal
+      :visible="visible"
+      :title="title"
+      :message="message"
+      @close="closeAlert"
+    />
   </div>
 </template>
 
@@ -38,6 +46,10 @@
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
+import AlertModal from './components/AlertModal.vue'
+import { useAlert } from './composables/useAlert'
+
+const { visible, message, title, closeAlert } = useAlert()
 
 const router = useRouter()
 const auth = getAuth()

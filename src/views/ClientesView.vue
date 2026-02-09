@@ -38,7 +38,7 @@
                     No se encontraron clientes coincidente.
                 </td>
             </tr>
-            <tr v-for="cliente in filteredClientes" :key="cliente.rut">
+            <tr v-for="cliente in filteredClientes" :key="cliente.id">
               <td data-label="Cliente">
                   <div class="client-info">
                       <span class="c-name">{{ cliente.nombre }}</span>
@@ -51,9 +51,14 @@
                   <span class="rut-badge">{{ cliente.rut }}</span>
               </td>
               <td class="text-right" data-label="Acciones">
-                <button class="btn-action" @click="editarCliente(cliente)" title="Ver Detalle">
-                    <span>Gestionar</span> <i class="fa-solid fa-chevron-right"></i>
-                </button>
+                <div class="action-buttons">
+                    <button class="btn-action delete" @click.stop="confirmDelete(cliente)" title="Eliminar">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <button class="btn-action" @click="editarCliente(cliente)" title="Ver Detalle">
+                        <span>Gestionar</span> <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -67,21 +72,37 @@
         @save="handleSaveClient"
         :loading="savingClient"
     />
+
+    <!-- Delete Confirmation Modal -->
+    <ConfirmationModal
+        v-if="showDeleteModal"
+        title="Eliminar Cliente"
+        :message="`¿Estás seguro de que deseas eliminar a <b>${clientToDelete?.nombre}</b>?<br>Esta acción no se puede deshacer.`"
+        verificationText="ELIMINAR"
+        @close="showDeleteModal = false"
+        @confirm="handleDeleteClient"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore' // Added setDoc
+import { collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore' // Added deleteDoc
 import { db } from '../firebase/firebaseConfig'
 import { useRouter } from 'vue-router'
 import ClientModal from '../components/ClientModal.vue'
+import ConfirmationModal from '../components/ConfirmationModal.vue'
+import { useAlert } from '../composables/useAlert'
+
+const { showAlert } = useAlert()
 
 const router = useRouter()
 const clientes = ref([])
 const searchQuery = ref('')
 const loading = ref(true)
 const showModal = ref(false)
+const showDeleteModal = ref(false)
+const clientToDelete = ref(null)
 const savingClient = ref(false)
 
 onMounted(async () => {
@@ -163,9 +184,10 @@ const editarCliente = (cliente) => {
 const handleSaveClient = async (clientData) => {
     savingClient.value = true
     try {
-        let docId = clientData.rut
+        // Prioritize existing ID (edit mode), then RUT (new with RUT), then generate new
+        let docId = clientData.id || clientData.rut
         
-        if (!docId) {
+        if (!docId || docId === 'N/D') {
             // No RUT provided. Generate a new ID.
             const newDocRef = doc(collection(db, 'clients'))
             docId = newDocRef.id
@@ -188,12 +210,44 @@ const handleSaveClient = async (clientData) => {
             clientes.value.sort((a,b) => a.nombre.localeCompare(b.nombre))
         }
         
+        showAlert('Cliente guardado exitosamente', 'Éxito')
         showModal.value = false
     } catch (error) {
         console.error("Error saving client:", error)
-        alert("Error al guardar cliente: " + error.message)
+        showAlert("Error al guardar el cliente: " + error.message, 'Error')
     } finally {
         savingClient.value = false
+    }
+}
+
+
+const confirmDelete = (cliente) => {
+    clientToDelete.value = cliente
+    showDeleteModal.value = true
+}
+
+const handleDeleteClient = async () => {
+    if (!clientToDelete.value) return
+    
+    try {
+        const docId = clientToDelete.value.id
+        // Ensure we are deleting a valid doc from 'clients'
+        if (!docId || docId === 'N/D') {
+            showAlert("No se puede eliminar este cliente (ID inválido o es legado).", "Error")
+            return
+        }
+
+        await deleteDoc(doc(db, 'clients', docId))
+        
+        // Remove locally
+        clientes.value = clientes.value.filter(c => c.id !== docId)
+        showAlert("Cliente eliminado correctamente", "Éxito")
+        showDeleteModal.value = false
+        clientToDelete.value = null
+        
+    } catch (error) {
+        console.error("Error deleting client:", error)
+        showAlert("Error al eliminar: " + error.message, "Error")
     }
 }
 </script>
@@ -375,6 +429,20 @@ const handleSaveClient = async (clientData) => {
 .btn-action:hover {
   background-color: rgba(59, 130, 246, 0.1); 
   /* color stays primary */
+}
+
+.action-buttons {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.btn-action.delete {
+    color: #dc2626;
+}
+.btn-action.delete:hover {
+    background-color: rgba(220, 38, 38, 0.1);
 }
 
 .empty-cell {
