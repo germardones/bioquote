@@ -19,6 +19,8 @@
           placeholder="Ej: 12.345.678-9" 
           @focus="showDropdown = true"
           @blur="handleBlur"
+          @input="handleRutInput"
+          maxlength="12"
         />
         <span v-if="buscandoCliente" class="loading-icon">🔍</span>
         
@@ -58,10 +60,11 @@
 
 <script setup>
 import { useQuotationStore } from '../../store/quotation'
-import { reactive, ref, onMounted, computed } from 'vue'
+import { reactive, ref, onMounted, computed, watch } from 'vue' // Added watch
 import { useRouter } from 'vue-router'
 import { db } from '../../firebase/firebaseConfig'
 import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore'
+import { formatRut } from '../../utils/rutUtils'
 
 const router = useRouter()
 const store = useQuotationStore()
@@ -76,6 +79,10 @@ const validarEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
 const validarTelefono = (telefono) => {
   const soloNumeros = telefono.replace(/\D/g, '')
   return soloNumeros.length >= 9 && soloNumeros.length <= 12
+}
+
+const handleRutInput = (e) => {
+    cliente.rut = formatRut(e.target.value)
 }
 
 const knownClients = ref([])
@@ -124,6 +131,8 @@ const filteredClients = computed(() => {
 
 const seleccionarCliente = (c) => {
     Object.assign(cliente, c)
+    // Ensure format on selection
+    if(cliente.rut) cliente.rut = formatRut(cliente.rut)
     showDropdown.value = false
     errores.rut = ''
 }

@@ -12,12 +12,15 @@
         <div class="header-right">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input v-model="searchQuery" type="text" placeholder="Buscar por nombre, RUT..." />
+                <input v-model="searchQuery" type="text" placeholder="Buscar..." />
             </div>
+             <button class="btn-primary" @click="showModal = true">
+                <i class="fa-solid fa-plus"></i> Nuevo Cliente
+            </button>
+            <button @click="router.back()" class="btn-volver">
+                <i class="fa-solid fa-arrow-left"></i> Volver
+            </button>
         </div>
-        <button @click="router.back()" class="btn-volver">
-              Volver
-        </button>
     </div>
 
     <div class="table-container card">
@@ -56,77 +59,123 @@
           </tbody>
         </table>
     </div>
+    
+    <!-- Client Modal -->
+    <ClientModal 
+        v-if="showModal" 
+        @close="showModal = false" 
+        @save="handleSaveClient"
+        :loading="savingClient"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { collection, getDocs, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore' // Added setDoc
 import { db } from '../firebase/firebaseConfig'
 import { useRouter } from 'vue-router'
+import ClientModal from '../components/ClientModal.vue'
 
 const router = useRouter()
 const clientes = ref([])
 const searchQuery = ref('')
 const loading = ref(true)
+const showModal = ref(false)
+const savingClient = ref(false)
 
 onMounted(async () => {
-  try {
-    // We fetch from projects to extract clients implicitly as per current architecture
-    // Ideally this should come from a 'clients' collection if it existed.
-    const querySnapshot = await getDocs(collection(db, 'projects'))
-    const vistos = new Set()
-
-    querySnapshot.forEach(doc => {
-      const p = doc.data()
-      // Estructura client_data (nueva) > cliente (legacy fallback)
-      const data = p.client_data || p.cliente
-      
-      // Fallback básico si todo falla
-      if (data && data.rut && !vistos.has(data.rut)) {
-        vistos.add(data.rut)
-        clientes.value.push(data)
-      } else if (!data && p.client_name) {
-        // Caso borde: Solo tenemos nombre
-        if (!vistos.has(p.client_name)) {
-            vistos.add(p.client_name)
-            clientes.value.push({ 
-                nombre: p.client_name, 
-                rut: 'N/D', 
-                razonSocial: 'N/D' 
-            })
-        }
-      }
-    })
-    
-    // Sort alpha
-    clientes.value.sort((a,b) => a.nombre.localeCompare(b.nombre))
-
-  } catch (error) {
-    console.error("Error al cargar clientes:", error)
-  } finally {
-    loading.value = false
-  }
+    await fetchClients()
 })
+
+const fetchClients = async () => {
+    loading.value = true
+    clientes.value = []
+    try {
+        // Fetch from 'clients' collection first (preferred source of truth now)
+        const clientsSnapshot = await getDocs(collection(db, 'clients'))
+        const existingRuts = new Set()
+        
+        clientsSnapshot.forEach(doc => {
+            const data = doc.data()
+            if (data.rut) {
+                existingRuts.add(data.rut)
+                clientes.value.push(data)
+            }
+        })
+
+        // Fetch from projects for legacy/implicit clients not yet in 'clients'
+        const projectsSnapshot = await getDocs(collection(db, 'projects'))
+
+        projectsSnapshot.forEach(doc => {
+            const p = doc.data()
+            const data = p.client_data || p.cliente
+            
+            if (data && data.rut && !existingRuts.has(data.rut)) {
+                existingRuts.add(data.rut)
+                clientes.value.push(data)
+            } else if (!data && p.client_name) {
+                if (!existingRuts.has(p.client_name)) { // Use name as key if no rut
+                     // Check again if we haven't added this name as a "rut" placeholder
+                     const pseudoRut = 'N/D'
+                     // Actually let's just push generic if name unique
+                     // Simplification: just show what we have, deduplication is hard without ID
+                }
+            }
+        })
+        
+        // Sort alpha
+        clientes.value.sort((a,b) => (a.nombre || '').localeCompare(b.nombre || ''))
+
+    } catch (error) {
+        console.error("Error al cargar clientes:", error)
+    } finally {
+        loading.value = false
+    }
+}
 
 const filteredClientes = computed(() => {
     if (!searchQuery.value) return clientes.value
     const q = searchQuery.value.toLowerCase()
     return clientes.value.filter(c => 
-        c.nombre.toLowerCase().includes(q) || 
+        (c.nombre && c.nombre.toLowerCase().includes(q)) || 
         (c.razonSocial && c.razonSocial.toLowerCase().includes(q)) ||
         (c.rut && c.rut.toLowerCase().includes(q))
     )
 })
 
 const editarCliente = (cliente) => {
-  // Navega a la vista para editar el cliente
-  // Ensure we rely on RUT which is the key ID here
-  if(cliente.rut === 'N/D') {
-      alert("Este cliente no tiene RUT válido para gestión detallada.")
-      return
-  }
-  router.push({ name: 'CRMClientDetail', params: { rut: cliente.rut } })
+    if(cliente.rut === 'N/D') {
+        alert("Este cliente no tiene RUT válido para gestión detallada.")
+        return
+    }
+    router.push({ name: 'CRMClientDetail', params: { rut: cliente.rut } })
+}
+
+const handleSaveClient = async (clientData) => {
+    if (!clientData.rut) return
+    savingClient.value = true
+    try {
+        // Use RUT as Document ID for uniqueness/easy lookup
+        await setDoc(doc(db, 'clients', clientData.rut), clientData, { merge: true })
+        
+        // Refresh or add locally
+        const idx = clientes.value.findIndex(c => c.rut === clientData.rut)
+        if (idx >= 0) {
+            clientes.value[idx] = clientData
+        } else {
+            clientes.value.push(clientData)
+            clientes.value.sort((a,b) => a.nombre.localeCompare(b.nombre))
+        }
+        
+        showModal.value = false
+        // Optional: Navigate to detail?
+    } catch (error) {
+        console.error("Error saving client:", error)
+        alert("Error al guardar cliente: " + error.message)
+    } finally {
+        savingClient.value = false
+    }
 }
 </script>
 
@@ -147,20 +196,61 @@ const editarCliente = (cliente) => {
     gap: 1.5rem;
 }
 
+.header-right {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.2s;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
 .header-left {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
 
-.btn-back {
-    background: none; border: none; cursor: pointer;
-    color: var(--text-muted); font-size: 0.95rem;
-    display: flex; align-items: center; gap: 8px;
-    padding: 0;
-    transition: color 0.2s;
+.header-right {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap; /* Auto wrap on small screens */
 }
-.btn-back:hover { color: var(--primary); }
+
+.btn-volver {
+    background: none; 
+    border: 1px solid var(--border-color); 
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-muted); 
+    font-size: 0.95rem;
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 16px; /* Match btn-primary height */
+    transition: all 0.2s;
+    height: 40px; /* Explicit height to match inputs/buttons */
+}
+.btn-volver:hover { 
+    border-color: var(--primary);
+    color: var(--primary); 
+    background: var(--bg-surface);
+}
 
 .title-block h2 { margin: 0; font-size: 1.8rem; letter-spacing: -0.5px; }
 .subtitle { margin: 4px 0 0 0; color: var(--text-muted); font-size: 0.9rem; }
@@ -277,8 +367,23 @@ const editarCliente = (cliente) => {
 
 @media (max-width: 768px) {
   .header { flex-direction: column; align-items: stretch; }
+  .header-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+  
   .search-box { width: 100%; }
+  
+  .btn-primary, .btn-volver {
+    width: 100%;
+    justify-content: center;
+    height: 44px; /* Larger touch target */
+  }
+
   .modern-table th, .modern-table td { padding: 1rem; }
+
 
   /* Table to Cards */
   .modern-table, .modern-table thead, .modern-table tbody, .modern-table th, .modern-table td, .modern-table tr {

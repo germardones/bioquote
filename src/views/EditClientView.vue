@@ -56,6 +56,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
 import { collection, getDocs, updateDoc, query, where, limit } from 'firebase/firestore'
+import { formatRut } from '../utils/rutUtils'
 
 const route = useRoute()
 const router = useRouter()
@@ -102,7 +103,11 @@ onMounted(async () => {
     if (!snapshot.empty) {
       const docData = snapshot.docs[0].data()
       const data = docData.client_data || docData.cliente
-      if (data) Object.assign(cliente, data)
+      if (data) {
+          Object.assign(cliente, data)
+          // Format RUT for display
+          if(cliente.rut) cliente.rut = formatRut(cliente.rut)
+      }
     } else {
       console.warn('Cliente no encontrado con RUT:', rutParam)
       // No redirigimos inmediatamente para permitir debug o reintento manual si fuera necesario
