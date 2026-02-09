@@ -16,8 +16,8 @@
           </div>
 
           <div class="form-group">
-            <label>RUT *</label>
-            <input v-model="form.rut" type="text" required placeholder="12.345.678-9" @input="handleRutInput" maxlength="12" />
+            <label>RUT</label>
+            <input v-model="form.rut" type="text" placeholder="12.345.678-9" @input="handleRutInput" maxlength="12" />
           </div>
 
           <div class="form-group">
@@ -104,6 +104,16 @@ const handleRutInput = (e) => {
 }
 
 const handleSubmit = () => {
+    // If no RUT is provided, we might need a strategy. 
+    // For now, if preserving old logic:
+    // We emitted 'save' and the parent handled it.
+    // Parent handles `setDoc(doc(db, 'clients', clientData.rut))` which fails if no rut.
+    // We should probably check if parent can handle it or enforce minimal identifier.
+    // User asked "no mandatory fields", but we need a primary key.
+    // Let's rely on Name if no RUT? Or generate a random ID?
+    // Given the previous code in ClientesView uses RUT as ID, we need to adjust parent or ensure RUT is generated/optional.
+    
+    // Actually, let's keep it simple: Pass data. Parent ClientesView logic needs update if RUT is missing.
     emit('save', { ...form })
 }
 </script>

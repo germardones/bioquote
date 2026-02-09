@@ -120,15 +120,19 @@ onMounted(async () => {
 
 const guardarCambios = async () => {
   errores.nombre = !cliente.nombre ? 'El nombre es obligatorio.' : ''
-  errores.razonSocial = !cliente.razonSocial ? 'La razón social es obligatoria.' : ''
-  errores.email = !cliente.email
-    ? 'El correo electrónico es obligatorio.'
-    : !validarEmail(cliente.email)
-    ? 'Correo electrónico no válido.'
-    : ''
-  errores.contacto = cliente.contacto && !validarTelefono(cliente.contacto)
-    ? 'Número de contacto no válido (9 a 12 dígitos).'
-    : ''
+  // Removed mandatory checks for razonSocial, email, etc.
+  
+  if (cliente.email && !validarEmail(cliente.email)) {
+      errores.email = 'Correo electrónico no válido.'
+  } else {
+      errores.email = ''
+  }
+
+  if (cliente.contacto && !validarTelefono(cliente.contacto)) {
+      errores.contacto = 'Número de contacto no válido (9 a 12 dígitos).'
+  } else {
+      errores.contacto = ''
+  }
 
   const hayErrores = Object.values(errores).some(Boolean)
   if (hayErrores) return
