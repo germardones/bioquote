@@ -87,7 +87,13 @@ const routes = [
     component: () => import('../components/admin/AdminVentasPorServicio.vue')
   },
   {
-    path: '/cotizaciones',
+    path: '/admin/calendar',
+    name: 'CalendarView',
+    component: () => import('../views/admin/CalendarView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/:pathMatch(.*)*',
     name: 'Cotizaciones',
     component: () => import('../views/QuotationsView.vue')
   },

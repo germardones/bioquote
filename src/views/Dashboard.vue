@@ -95,10 +95,17 @@
       <div class="dashboard-section category-admin">
         <h3 class="section-title"><i class="fa-solid fa-user-gear"></i> Admin</h3>
         <div class="grid">
-          <div class="card clickable" @click="router.push('/admin/config')">
+        <div class="card clickable" @click="router.push('/admin/config')">
           <div class="card-icon"><i class="fa-solid fa-sliders"></i></div>
           <div>
              <h3>Configuración</h3>
+          </div>
+        </div>
+
+        <div class="card clickable" @click="router.push('/admin/calendar')">
+          <div class="card-icon"><i class="fa-solid fa-calendar-days"></i></div>
+          <div>
+             <h3>Agenda</h3>
           </div>
         </div>
         </div>
@@ -218,6 +225,8 @@ onMounted(async () => {
 .category-admin .card { border-bottom: 4px solid #dd3535; }
 .category-admin .card-icon { background: rgba(139, 92, 246, 0.1); color: #dd3535; }
 .category-admin .card:hover { border-color: var(--border-color); border-bottom-color: #dd3535; }
+
+.category-calendar .section-title { color: #db2777; border-bottom-color: rgba(219, 39, 119, 0.3); }
 
 @media (max-width: 640px) {
   .container { padding: 1rem; }
