@@ -39,6 +39,11 @@ const routes = [
     component: () => import('../views/ClientesView.vue')
   },
   {
+    path: '/leads',
+    name: 'Leads',
+    component: () => import('../views/LeadsView.vue')
+  },
+  {
     path: '/crm/followup',
     name: 'CRMFollowUp',
     component: () => import('../views/crm/CRMFollowUpView.vue')

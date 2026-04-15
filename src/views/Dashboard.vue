@@ -61,7 +61,14 @@
           <div>
              <h3>Matriz de Seguimiento</h3>
           </div>
-        </div>        
+        </div>
+
+        <div class="card clickable" @click="router.push('/leads')">
+          <div class="card-icon"><i class="fa-solid fa-bullseye"></i></div>
+          <div>
+             <h3>Leads Web</h3>
+          </div>
+        </div>
       </div>
     </div>
 
