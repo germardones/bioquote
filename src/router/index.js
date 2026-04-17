@@ -54,42 +54,14 @@ const routes = [
     component: () => import('../views/crm/CRMClientDetailView.vue')
   },
   {
-    path: '/editar-cliente/:rut',
-    name: 'editar-cliente',
-    // Redirect legacy route or keep for backward compat but point to same component?
-    // Let's redirect to keep it clean, or just use the new component.
-    // Using new component to migrate fully effectively.
-    component: () => import('../views/crm/CRMClientDetailView.vue')
-  },
-  {
-    path: '/admin',
-    name: 'AdminDashboard',
-    component: () => import('../views/AdminDashboard.vue')
+    path: '/cotizaciones',
+    name: 'Cotizaciones',
+    component: () => import('../views/QuotationsView.vue')
   },
   {
     path: '/admin/config',
     name: 'AdminConfig',
     component: () => import('../views/admin/SystemConfigurationView.vue')
-  },
-  {
-    path: '/admin/cotizaciones',
-    name: 'AdminCotizaciones',
-    component: () => import('../components/admin/AdminCotizaciones.vue')
-  },
-  {
-    path: '/admin/clientes',
-    name: 'AdminClientes',
-    component: () => import('../components/admin/AdminClientesView.vue')
-  },
-  {
-    path: '/usuarios',
-    name: 'Users',
-    component: () => import('../views/WorkersView.vue')
-  },
-  {
-    path: '/admin/ventas-servicio',
-    name: 'AdminVentasServicio',
-    component: () => import('../components/admin/AdminVentasPorServicio.vue')
   },
   {
     path: '/admin/calendar',
@@ -98,9 +70,9 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/:pathMatch(.*)*',
-    name: 'Cotizaciones',
-    component: () => import('../views/QuotationsView.vue')
+    path: '/usuarios',
+    name: 'Users',
+    component: () => import('../views/WorkersView.vue')
   },
   {
     path: '/proyectos-en-curso',
@@ -166,10 +138,11 @@ const router = createRouter({
 
 // Protección de rutas
 router.beforeEach((to, from, next) => {
-  const publicRoutes = ['/']
   const user = auth.currentUser
 
-  if (!publicRoutes.includes(to.path) && !user) {
+  if (to.path === '/' && user) {
+    next('/dashboard')
+  } else if (to.path !== '/' && !user) {
     next('/')
   } else {
     next()
