@@ -13,7 +13,7 @@
           </button>
 
           <button
-            v-if="userLogged"
+            v-if="showLogout"
             @click="cerrarSesion"
             class="btn-logout"
           >
@@ -44,16 +44,18 @@
 
 <script setup>
 import { getAuth, signOut, onAuthStateChanged } from 'firebase/auth'
-import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, computed } from 'vue'
 import AlertModal from './components/AlertModal.vue'
 import { useAlert } from './composables/useAlert'
 
 const { visible, message, title, closeAlert } = useAlert()
 
 const router = useRouter()
+const route = useRoute()
 const auth = getAuth()
 const userLogged = ref(false)
+const showLogout = computed(() => userLogged.value && route.path !== '/')
 const isDark = ref(localStorage.getItem('theme') === 'dark')
 
 onMounted(() => {

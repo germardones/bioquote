@@ -61,9 +61,7 @@ const redirigirPorRol = async (user) => {
       return
     }
 
-    if (rol === 'admin') {
-      router.push('/admin')
-    } else if (rol === 'vendedor') {
+    if (rol === 'admin' || rol === 'vendedor') {
       router.push('/dashboard')
     } else {
       await auth.signOut()
