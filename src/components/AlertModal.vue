@@ -7,7 +7,7 @@
       </div>
       
       <div class="modal-body">
-        <p v-html="message"></p>
+        <p>{{ message }}</p>
       </div>
 
       <div class="modal-actions">

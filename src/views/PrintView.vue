@@ -156,12 +156,12 @@
           
           <div v-if="project.specs?.scope?.included" class="scope-block">
             <h4>Alcance del Servicio</h4>
-            <div class="scope-content" v-html="project.specs.scope.included"></div>
+            <div class="scope-content" v-html="sanitize(project.specs.scope.included)"></div>
           </div>
-    
+
           <div v-if="project.specs?.scope?.excluded" class="scope-block mt-4">
             <h4>Exclusiones y Requisitos</h4>
-            <div class="scope-content" v-html="project.specs.scope.excluded"></div>
+            <div class="scope-content" v-html="sanitize(project.specs.scope.excluded)"></div>
           </div>
         </section>
 
@@ -188,6 +188,9 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
 import { doc, getDoc } from 'firebase/firestore'
+import DOMPurify from 'dompurify'
+
+const sanitize = (html) => DOMPurify.sanitize(html || '', { USE_PROFILES: { html: true } })
 
 const route = useRoute()
 const router = useRouter()
