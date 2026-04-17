@@ -2,7 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import NewQuotation from '../views/NewQuotation.vue'
-import { auth } from '../firebase/firebaseConfig'
+import { auth, db } from '../firebase/firebaseConfig'
+import { doc, getDoc } from 'firebase/firestore'
 
 const routes = [
   { path: '/', name: 'Login', component: Login },
@@ -136,17 +137,49 @@ const router = createRouter({
   routes
 })
 
-// Protección de rutas
-router.beforeEach((to, from, next) => {
-  const user = auth.currentUser
+// Routes that require admin role
+const ADMIN_ROUTES = ['/admin', '/usuarios']
 
-  if (to.path === '/' && user) {
-    next('/dashboard')
-  } else if (to.path !== '/' && !user) {
-    next('/')
-  } else {
-    next()
+// Wait for Firebase to restore auth state (avoids null on page refresh)
+const authReady = new Promise(resolve => {
+  const unsub = auth.onAuthStateChanged(user => {
+    unsub()
+    resolve(user)
+  })
+})
+
+// Cache role to avoid a Firestore read on every navigation
+let cachedUid = null
+let cachedRole = null
+
+async function getUserRole(uid) {
+  if (uid === cachedUid && cachedRole !== null) return cachedRole
+  const snap = await getDoc(doc(db, 'usuarios', uid))
+  cachedRole = snap.exists() ? snap.data().rol : null
+  cachedUid = uid
+  return cachedRole
+}
+
+// Reset cache on sign-out
+auth.onAuthStateChanged(user => {
+  if (!user) { cachedUid = null; cachedRole = null }
+})
+
+// Protección de rutas
+router.beforeEach(async (to, from, next) => {
+  const publicRoutes = ['/']
+  const user = await authReady
+
+  if (!publicRoutes.includes(to.path) && !user) {
+    return next('/')
   }
+
+  if (user && ADMIN_ROUTES.some(r => to.path.startsWith(r))) {
+    const role = await getUserRole(user.uid)
+    if (role !== 'admin') return next('/dashboard')
+  }
+
+  next()
 })
 
 export default router

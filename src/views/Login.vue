@@ -25,7 +25,7 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   setPersistence,
-  browserLocalPersistence
+  browserSessionPersistence
 } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase/firebaseConfig'
@@ -82,7 +82,7 @@ const loginConCorreo = async () => {
 
   try {
     loading.value = true
-    await setPersistence(auth, browserLocalPersistence)
+    await setPersistence(auth, browserSessionPersistence)
 
     const credenciales = await signInWithEmailAndPassword(
       auth,

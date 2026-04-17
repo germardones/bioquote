@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if caller is authenticated
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Helper: check role stored in usuarios/{uid}
+    function hasRole(role) {
+      return isAuth() &&
+        get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == role;
+    }
+
+    function isAdmin() { return hasRole('admin'); }
+    function isVendedor() { return hasRole('vendedor'); }
+    function isAdminOrVendedor() { return isAdmin() || isVendedor(); }
+
+    // ── Usuarios ─────────────────────────────────────────────────────────────
+    match /usuarios/{userId} {
+      // Users read their own doc; admins read all
+      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
+      // Only admins create/update/delete user records
+      allow write: if isAdmin();
+    }
+
+    // ── Cotizaciones / Proyectos ──────────────────────────────────────────────
+    match /cotizaciones/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow create: if isAdminOrVendedor();
+      allow update, delete: if isAdmin();
+    }
+
+    match /proyectos/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow create: if isAdminOrVendedor();
+      allow update, delete: if isAdmin();
+    }
+
+    match /proyectos/{docId}/{sub=**} {
+      allow read: if isAdminOrVendedor();
+      allow write: if isAdminOrVendedor();
+    }
+
+    // ── Clientes ──────────────────────────────────────────────────────────────
+    match /clientes/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow create, update: if isAdminOrVendedor();
+      allow delete: if isAdmin();
+    }
+
+    // ── Leads (public write via API, admin read) ──────────────────────────────
+    match /leads/{docId} {
+      // Anyone can create a lead (public contact form) — server-side only via API
+      // Firestore direct write is locked down; the API uses Admin SDK or service account
+      allow read: if isAdmin();
+      allow create: if false; // Only via server-side API endpoint
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Config / System ───────────────────────────────────────────────────────
+    match /configuracion/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow write: if isAdmin();
+    }
+
+    match /config/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow write: if isAdmin();
+    }
+
+    // ── Calendar / Events ─────────────────────────────────────────────────────
+    match /eventos/{docId} {
+      allow read: if isAdminOrVendedor();
+      allow write: if isAdminOrVendedor();
+    }
+
+    // ── Deny everything else ──────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

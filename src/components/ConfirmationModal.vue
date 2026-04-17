@@ -7,7 +7,7 @@
       </div>
       
       <div class="modal-body">
-        <p v-html="message"></p>
+        <p>{{ message }}</p>
         
         <div v-if="verificationText" class="verification-section">
             <p class="instruction">Para confirmar, escriba <strong>{{ verificationText }}</strong> a continuación:</p>
