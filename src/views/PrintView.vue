@@ -10,7 +10,7 @@
             <div class="company-details">
                 <h1>BIOBIO CODE</h1>
                 <p>Barros Arana 492, Of. 78, Concepción</p>
-                <p>RUT: 76.123.456-7</p>
+                <p>RUT: 78.149.271-K</p>
                 <p>+56 9 3104 7688</p>
                 <p>contacto@biobiocode.cl</p>
             </div>
