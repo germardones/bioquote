@@ -1,7 +1,12 @@
 <template>
   <div class="container fade-in">
     <div class="header-row">
-      <h2><i class="fa-solid fa-bullseye"></i> Leads - BioBioCode.cl</h2>
+      <div class="header-left">
+        <button @click="router.push('/dashboard')" class="btn-back">
+          <i class="fa-solid fa-arrow-left"></i> Dashboard
+        </button>
+        <h2><i class="fa-solid fa-bullseye"></i> Leads - BioBioCode.cl</h2>
+      </div>
       <div class="filters">
         <select v-model="filtroEstado" class="filter-select">
           <option value="">Todos</option>
@@ -66,6 +71,9 @@
           <button @click="convertirACliente(lead)" class="btn-action btn-convert" title="Convertir a cliente">
             <i class="fa-solid fa-user-plus"></i> Convertir a cliente
           </button>
+          <button @click="eliminarLead(lead.id)" class="btn-action btn-delete" title="Eliminar lead">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -76,7 +84,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
-import { collection, getDocs, doc, updateDoc, orderBy, query } from 'firebase/firestore'
+import { collection, getDocs, doc, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore'
 
 const router = useRouter()
 const leads = ref([])
@@ -122,6 +130,16 @@ const cambiarEstado = async (id, nuevoEstado) => {
     if (lead) lead.estado = nuevoEstado
   } catch (err) {
     console.error('Error actualizando estado:', err)
+  }
+}
+
+const eliminarLead = async (id) => {
+  if (!confirm('¿Eliminar este lead? Esta acción no se puede deshacer.')) return
+  try {
+    await deleteDoc(doc(db, 'leads', id))
+    leads.value = leads.value.filter(l => l.id !== id)
+  } catch (err) {
+    console.error('Error eliminando lead:', err)
   }
 }
 
@@ -234,6 +252,23 @@ const convertirACliente = (lead) => {
 .estado-select.calificado { color: #10b981; }
 .estado-select.descartado { color: #6b7280; }
 
+.header-left { display: flex; align-items: center; gap: 1rem; }
+.btn-back {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.btn-back:hover { color: var(--text-main); border-color: var(--text-muted); }
+
 .lead-actions { display: flex; gap: 0.5rem; }
 .btn-action {
   flex: 1;
@@ -251,4 +286,5 @@ const convertirACliente = (lead) => {
 }
 .btn-action:hover { opacity: 0.85; }
 .btn-convert { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.btn-delete { flex: 0; background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 0.4rem 0.6rem; }
 </style>
