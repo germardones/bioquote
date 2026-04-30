@@ -173,7 +173,8 @@ auth.onAuthStateChanged(user => {
 // Protección de rutas
 router.beforeEach(async (to, from, next) => {
   const publicRoutes = ['/']
-  const user = await authReady
+  await authReady  // esperar inicialización, pero no usar el valor cacheado
+  const user = auth.currentUser  // estado real en el momento de la navegación
 
   if (!publicRoutes.includes(to.path) && !user) {
     return next('/')
