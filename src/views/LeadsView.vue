@@ -75,9 +75,39 @@
             <i class="fa-solid fa-trash"></i>
           </button>
         </div>
+
+        <div class="email-section">
+          <span class="email-section-label">
+            <i class="fa-solid fa-envelope"></i> Email
+            <span v-if="!lead.email" class="no-email-note">— sin email registrado</span>
+          </span>
+          <div class="email-steps">
+            <button
+              v-for="step in EMAIL_STEPS"
+              :key="step.key"
+              :class="['btn-email-step', emailStepStatus(lead, step.key)]"
+              :disabled="emailStepStatus(lead, step.key) !== 'activo'"
+              :title="step.label"
+              @click="abrirEmailModal(lead, step.key)"
+            >
+              <i :class="emailStepStatus(lead, step.key) === 'enviado' ? 'fa-solid fa-check' : step.icon"></i>
+              {{ step.label }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
+  <EmailPreviewModal
+    v-if="emailModal"
+    :lead="emailModal.lead"
+    :asunto="emailModal.asunto"
+    :cuerpo="emailModal.cuerpo"
+    :sending="enviando"
+    @close="emailModal = null"
+    @confirm="confirmarEnvio"
+  />
 </template>
 
 <script setup>
@@ -85,12 +115,62 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
 import { collection, getDocs, doc, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore'
+import EmailPreviewModal from '../components/EmailPreviewModal.vue'
+import { getTemplateFor, enviarEmail } from '../services/emailService'
 
 const router = useRouter()
 const leads = ref([])
 const loading = ref(true)
 const filtroEstado = ref('')
 const filtroSector = ref('')
+const emailModal = ref(null)
+const enviando = ref(false)
+
+const EMAIL_STEPS = [
+  { key: 'nuevo',        label: 'Contacto inicial', icon: 'fa-solid fa-envelope' },
+  { key: 'email_enviado', label: 'Seg. 3 días',     icon: 'fa-solid fa-rotate-right' },
+  { key: 'seg_3d',       label: 'Seg. 7 días',      icon: 'fa-solid fa-rotate-right' },
+  { key: 'seg_5d',       label: 'Seg. 14 días',     icon: 'fa-solid fa-rotate-right' },
+]
+
+const ESTADO_ORDEN = ['nuevo', 'email_enviado', 'seg_3d', 'seg_5d', 'seg_14d']
+
+const emailStepStatus = (lead, stepKey) => {
+  if (!lead.email) return 'sin-email'
+  const leadIdx = ESTADO_ORDEN.indexOf(lead.estado)
+  const stepIdx = ESTADO_ORDEN.indexOf(stepKey)
+  if (leadIdx === -1) return 'activo'    // estados CRM → todos los botones disponibles
+  if (leadIdx > stepIdx) return 'enviado'
+  if (leadIdx === stepIdx) return 'activo'
+  return 'pendiente'
+}
+
+const abrirEmailModal = (lead, stepKey) => {
+  const template = getTemplateFor(lead, stepKey)
+  if (!template) return
+  emailModal.value = {
+    lead: { ...lead, contacto: lead.nombre },
+    stepKey,
+    asunto: template.asunto,
+    cuerpo: template.cuerpo
+  }
+}
+
+const confirmarEnvio = async ({ asunto, cuerpo }) => {
+  if (!emailModal.value) return
+  enviando.value = true
+  try {
+    const { lead, stepKey } = emailModal.value
+    const nuevoEstado = await enviarEmail(lead, asunto, cuerpo, stepKey)
+    const found = leads.value.find(l => l.id === lead.id)
+    if (found) found.estado = nuevoEstado
+    emailModal.value = null
+  } catch (err) {
+    alert('Error al enviar email: ' + err.message)
+  } finally {
+    enviando.value = false
+  }
+}
 
 onMounted(async () => {
   try {
@@ -287,4 +367,78 @@ const convertirACliente = (lead) => {
 .btn-action:hover { opacity: 0.85; }
 .btn-convert { background: rgba(16, 185, 129, 0.15); color: #10b981; }
 .btn-delete { flex: 0; background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 0.4rem 0.6rem; }
+
+.email-section {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.email-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.no-email-note {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
+}
+
+.email-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.btn-email-step {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.35rem 0.3rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-app);
+  color: var(--text-muted);
+  cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.btn-email-step i { font-size: 0.75rem; }
+
+.btn-email-step.activo {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: #3b82f6;
+  color: #3b82f6;
+  cursor: pointer;
+}
+.btn-email-step.activo:hover {
+  background: rgba(59, 130, 246, 0.22);
+}
+
+.btn-email-step.enviado {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  opacity: 0.7;
+}
+
+.btn-email-step.pendiente,
+.btn-email-step.sin-email {
+  opacity: 0.35;
+}
 </style>
