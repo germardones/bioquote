@@ -76,6 +76,16 @@ export const getTemplate = (lead) => {
   }
 }
 
+export const getTemplateFor = (lead, key) => {
+  const t = TEMPLATES[key]
+  if (!t) return null
+  return {
+    asunto: t.asunto(lead),
+    cuerpo: t.cuerpo(lead),
+    estadoSiguiente: t.estadoSiguiente
+  }
+}
+
 export const debeEnviarHoy = (lead) => {
   if (!puedeEnviarEmail(lead)) return false
   if (lead.estado === 'nuevo') return true
@@ -87,8 +97,9 @@ export const debeEnviarHoy = (lead) => {
   return diff >= diasNecesarios
 }
 
-export const enviarEmail = async (lead, asunto, cuerpo) => {
-  const t = TEMPLATES[lead.estado]
+export const enviarEmail = async (lead, asunto, cuerpo, templateKey = null) => {
+  const key = templateKey || lead.estado
+  const t = TEMPLATES[key]
   if (!t) throw new Error('Estado sin template de email')
 
   const res = await fetch('/api/send-email', {
