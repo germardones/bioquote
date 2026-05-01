@@ -71,6 +71,9 @@
           <button @click="convertirACliente(lead)" class="btn-action btn-convert" title="Convertir a cliente">
             <i class="fa-solid fa-user-plus"></i> Convertir a cliente
           </button>
+          <button @click="abrirEdicion(lead)" class="btn-action btn-edit" title="Editar lead">
+            <i class="fa-solid fa-pen"></i>
+          </button>
           <button @click="eliminarLead(lead.id)" class="btn-action btn-delete" title="Eliminar lead">
             <i class="fa-solid fa-trash"></i>
           </button>
@@ -99,6 +102,44 @@
     </div>
   </div>
 
+  <!-- Modal de edición -->
+  <div v-if="modalEdicion" class="modal-overlay" @click.self="cerrarEdicion">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-pen-to-square"></i> Editar Lead</h3>
+        <button @click="cerrarEdicion" class="btn-close"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Nombre del contacto</label>
+          <input v-model="formEdicion.nombre" type="text" class="form-input" placeholder="Nombre completo" />
+        </div>
+        <div class="form-group">
+          <label>Empresa</label>
+          <input v-model="formEdicion.empresa" type="text" class="form-input" placeholder="Nombre de la empresa" />
+        </div>
+        <div class="form-group">
+          <label>Sector</label>
+          <select v-model="formEdicion.sector" class="form-input">
+            <option value="industrial">Industrial</option>
+            <option value="logistica">Logística</option>
+            <option value="activos">Activos Críticos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Mensaje</label>
+          <textarea v-model="formEdicion.mensaje" class="form-input" rows="4" placeholder="Mensaje del lead"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button @click="cerrarEdicion" class="btn-cancel">Cancelar</button>
+        <button @click="guardarEdicion" class="btn-save" :disabled="guardando">
+          <i class="fa-solid fa-floppy-disk"></i> {{ guardando ? 'Guardando...' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
   <EmailPreviewModal
     v-if="emailModal"
     :lead="emailModal.lead"
@@ -116,13 +157,17 @@ import { useRouter } from 'vue-router'
 import { db } from '../firebase/firebaseConfig'
 import { collection, getDocs, doc, updateDoc, deleteDoc, orderBy, query } from 'firebase/firestore'
 import EmailPreviewModal from '../components/EmailPreviewModal.vue'
-import { getTemplateFor, enviarEmail } from '../services/emailService'
+import { getTemplate, enviarEmail } from '../services/emailService'
 
 const router = useRouter()
 const leads = ref([])
 const loading = ref(true)
 const filtroEstado = ref('')
 const filtroSector = ref('')
+const modalEdicion = ref(false)
+const guardando = ref(false)
+const leadEditandoId = ref(null)
+const formEdicion = ref({ nombre: '', empresa: '', sector: '', mensaje: '' })
 const emailModal = ref(null)
 const enviando = ref(false)
 
@@ -139,14 +184,14 @@ const emailStepStatus = (lead, stepKey) => {
   if (!lead.email) return 'sin-email'
   const leadIdx = ESTADO_ORDEN.indexOf(lead.estado)
   const stepIdx = ESTADO_ORDEN.indexOf(stepKey)
-  if (leadIdx === -1) return 'activo'    // estados CRM → todos los botones disponibles
+  if (leadIdx === -1) return 'activo'
   if (leadIdx > stepIdx) return 'enviado'
   if (leadIdx === stepIdx) return 'activo'
   return 'pendiente'
 }
 
 const abrirEmailModal = (lead, stepKey) => {
-  const template = getTemplateFor(lead, stepKey)
+  const template = getTemplate(lead)
   if (!template) return
   emailModal.value = {
     lead: { ...lead, contacto: lead.nombre },
@@ -220,6 +265,37 @@ const eliminarLead = async (id) => {
     leads.value = leads.value.filter(l => l.id !== id)
   } catch (err) {
     console.error('Error eliminando lead:', err)
+  }
+}
+
+const abrirEdicion = (lead) => {
+  leadEditandoId.value = lead.id
+  formEdicion.value = { nombre: lead.nombre || '', empresa: lead.empresa || '', sector: lead.sector || '', mensaje: lead.mensaje || '' }
+  modalEdicion.value = true
+}
+
+const cerrarEdicion = () => {
+  modalEdicion.value = false
+  leadEditandoId.value = null
+}
+
+const guardarEdicion = async () => {
+  if (guardando.value) return
+  guardando.value = true
+  try {
+    await updateDoc(doc(db, 'leads', leadEditandoId.value), {
+      nombre: formEdicion.value.nombre.trim(),
+      empresa: formEdicion.value.empresa.trim(),
+      sector: formEdicion.value.sector,
+      mensaje: formEdicion.value.mensaje.trim()
+    })
+    const lead = leads.value.find(l => l.id === leadEditandoId.value)
+    if (lead) Object.assign(lead, { ...formEdicion.value, nombre: formEdicion.value.nombre.trim(), empresa: formEdicion.value.empresa.trim(), mensaje: formEdicion.value.mensaje.trim() })
+    cerrarEdicion()
+  } catch (err) {
+    console.error('Error guardando edición:', err)
+  } finally {
+    guardando.value = false
   }
 }
 
@@ -366,6 +442,7 @@ const convertirACliente = (lead) => {
 }
 .btn-action:hover { opacity: 0.85; }
 .btn-convert { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.btn-edit { flex: 0; background: rgba(59, 130, 246, 0.12); color: #3b82f6; padding: 0.4rem 0.6rem; }
 .btn-delete { flex: 0; background: rgba(239, 68, 68, 0.12); color: #ef4444; padding: 0.4rem 0.6rem; }
 
 .email-section {
@@ -441,4 +518,67 @@ const convertirACliente = (lead) => {
 .btn-email-step.sin-email {
   opacity: 0.35;
 }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 1rem;
+}
+.modal-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  width: 100%; max-width: 480px;
+  display: flex; flex-direction: column; gap: 0;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.modal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.modal-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
+.btn-close {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 1.1rem; padding: 0.2rem;
+  transition: color 0.2s;
+}
+.btn-close:hover { color: var(--text-main); }
+.modal-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+.form-group label { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.form-input {
+  background: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  width: 100%;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+.form-input:focus { outline: none; border-color: #3b82f6; }
+textarea.form-input { resize: vertical; min-height: 80px; }
+.modal-footer {
+  display: flex; justify-content: flex-end; gap: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+.btn-cancel {
+  font-size: 0.875rem; font-weight: 600; padding: 0.55rem 1.2rem;
+  border: 1px solid var(--border-color); border-radius: 8px;
+  background: none; color: var(--text-muted); cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.btn-cancel:hover { color: var(--text-main); border-color: var(--text-muted); }
+.btn-save {
+  font-size: 0.875rem; font-weight: 600; padding: 0.55rem 1.2rem;
+  border: none; border-radius: 8px;
+  background: #3b82f6; color: #fff; cursor: pointer;
+  display: flex; align-items: center; gap: 0.4rem;
+  transition: opacity 0.2s;
+}
+.btn-save:hover:not(:disabled) { opacity: 0.88; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
