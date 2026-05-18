@@ -9,9 +9,23 @@
       </div>
     </div>
 
+    <!-- Status filter pills -->
+    <div class="filter-bar" v-if="!loading && allProjects.length > 0">
+      <button
+        v-for="f in filters"
+        :key="f.value"
+        class="filter-pill"
+        :class="{ active: activeFilter === f.value }"
+        @click="activeFilter = f.value"
+      >
+        {{ f.label }}
+        <span class="filter-count">{{ countFor(f.value) }}</span>
+      </button>
+    </div>
+
     <div v-if="loading" class="loading">Cargando cotizaciones...</div>
 
-    <div v-else-if="projects.length > 0">
+    <div v-else-if="filteredProjects.length > 0">
       <div class="table-responsive">
         <table class="projects-table">
           <thead>
@@ -26,35 +40,48 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="p in projects" :key="p.id">
+            <tr v-for="p in filteredProjects" :key="p.id">
               <td data-label="Código"><span class="badge-code">{{ p.codigo }}</span></td>
               <td data-label="Cliente">{{ p.client_name }}</td>
               <td data-label="Proyecto">{{ p.name }}</td>
-              <td data-label="Fecha">{{ formatFecha(p.created_at) }}</td>
+              <td data-label="Fecha">
+                {{ formatFecha(p.created_at) }}
+                <span v-if="p.validUntil" class="validity" :class="validityClass(p)">
+                  · vence {{ formatValidity(p.validUntil) }}
+                </span>
+              </td>
               <td data-label="Monto Base" class="monto">${{ (p.financials?.quoted_price || 0).toLocaleString() }}</td>
               <td data-label="Estado">
-                <span class="badge-status" :class="getStatusClass(p.status)">{{ p.status }}</span>
+                <span class="badge-status" :class="statusCssClass(p.status)">{{ statusLabel(p.status) }}</span>
+                <span v-if="(p.versions || []).length > 0" class="version-pill" :title="`${p.versions.length} versión(es) guardadas`">
+                  v{{ (p.versions || []).length + 1 }}
+                </span>
               </td>
               <td data-label="Acciones" class="actions-cell">
-                <button class="btn-icon-danger" title="Eliminar" @click="eliminarCotizacion(p)">
-                    <i class="fa-solid fa-trash"></i>
+                <button class="btn-icon-view" title="Ver detalle" @click="verDetalle(p)">
+                    <i class="fa-solid fa-eye"></i>
                 </button>
-                <button v-if="p.status === 'Draft'" class="btn-icon-edit" title="Editar" @click="editarCotizacion(p)">
+                <button class="btn-icon-edit" title="Editar cotización" @click="editarCotizacion(p)">
                     <i class="fa-solid fa-pen-to-square"></i>
                 </button>
                 <button v-if="p.status === 'Draft'" class="btn-icon-scope" title="Editar Alcances" @click="abrirModalAlcances(p)">
                     <i class="fa-solid fa-file-contract"></i>
                 </button>
-                <button class="btn-icon-view" title="Ver detalle" @click="verDetalle(p)">
-                    <i class="fa-solid fa-eye"></i>
-                </button>
-                <button 
-                  v-if="p.status === 'Draft'" 
-                  class="btn-icon-success" 
-                  title="Aceptar Cotización" 
-                  @click="aceptarCotizacion(p)"
+
+                <!-- Forward transitions -->
+                <button
+                  v-for="next in nextTransitionsFor(p.status)"
+                  :key="next"
+                  class="btn-transition"
+                  :class="transitionClass(next)"
+                  :title="transitionTitle(next)"
+                  @click="transitionTo(p, next)"
                 >
-                  <i class="fa-solid fa-check"></i>
+                  <i :class="transitionIcon(next)"></i>
+                </button>
+
+                <button class="btn-icon-danger" title="Eliminar" @click="eliminarCotizacion(p)">
+                    <i class="fa-solid fa-trash"></i>
                 </button>
               </td>
             </tr>
@@ -64,379 +91,237 @@
     </div>
 
     <div v-else class="empty-state">
-      <p>No tienes cotizaciones activas.</p>
+      <p v-if="allProjects.length === 0">No tienes cotizaciones activas.</p>
+      <p v-else>Sin cotizaciones para este filtro.</p>
       <button @click="router.push('/cotizar')" class="btn-crear">Crear Nueva Cotización</button>
     </div>
   </div>
-    <ScopeModal 
-      :show="showScopeModal" 
-      :projectId="selectedProjectId" 
+    <ScopeModal
+      :show="showScopeModal"
+      :projectId="selectedProjectId"
       @close="showScopeModal = false"
       @saved="onScopeSaved"
     />
-
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { db, auth } from '../firebase/firebaseConfig'
-import { collection, query, where, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore'
+import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore'
 import ScopeModal from '../components/modals/ScopeModal.vue'
+import {
+  STATUS, QUOTATION_STATUSES, NEXT_TRANSITIONS,
+  statusLabel, statusCssClass
+} from '../constants/projectStatus'
+import { changeProjectStatus } from '../utils/projectLifecycle'
 
 const router = useRouter()
-const projects = ref([])
+const allProjects = ref([])
 const loading = ref(true)
+const activeFilter = ref('all')
 
-onMounted(async () => {
-  await fetchProjects()
-})
+const filters = [
+  { value: 'all',                       label: 'Todas' },
+  { value: STATUS.DRAFT,                label: 'Borrador' },
+  { value: STATUS.SENT,                 label: 'Enviadas' },
+  { value: STATUS.IN_NEGOTIATION,       label: 'Negociación' },
+  { value: STATUS.APPROVED,             label: 'Aprobadas' },
+  { value: STATUS.REJECTED,             label: 'Rechazadas' }
+]
 
-const fetchProjects = async () => {
+const filteredProjects = computed(() =>
+  activeFilter.value === 'all'
+    ? allProjects.value
+    : allProjects.value.filter(p => p.status === activeFilter.value)
+)
+
+const countFor = (val) => val === 'all'
+  ? allProjects.value.length
+  : allProjects.value.filter(p => p.status === val).length
+
+onMounted(fetchProjects)
+
+async function fetchProjects() {
   try {
     const user = auth.currentUser
     if (!user) return
-
-    const q = query(
-      collection(db, 'projects'),
-      where('owner_uid', '==', user.uid)
-    )
-
+    const q = query(collection(db, 'projects'), where('owner_uid', '==', user.uid))
     const snapshot = await getDocs(q)
-    const data = snapshot.docs.map(doc => ({
-      id: doc.id,
-      codigo: doc.id.substring(0, 8).toUpperCase(),
-      ...doc.data()
+    const data = snapshot.docs.map(d => ({
+      id: d.id,
+      codigo: d.id.substring(0, 8).toUpperCase(),
+      ...d.data()
     }))
-    
-    // Sort and Filter: Show only NON-active projects (Draft, Sent, Approved, Rejected)
-    // Assuming 'En Curso', 'Completed', etc. are Active.
-    // Simplifying: Filter OUT 'En Curso'
-    projects.value = data
-        .filter(p => p.status !== 'En Curso' && p.status !== 'Completed')
-        .sort((a, b) => {
-            const tA = a.created_at?.seconds || 0
-            const tB = b.created_at?.seconds || 0
-            return tB - tA
-        })
-
-  } catch (error) {
-    console.error('Error fetching projects:', error)
+    allProjects.value = data
+      .filter(p => QUOTATION_STATUSES.includes(p.status))
+      .sort((a, b) => (b.created_at?.seconds || 0) - (a.created_at?.seconds || 0))
+  } catch (e) {
+    console.error('Error fetching projects:', e)
   } finally {
     loading.value = false
   }
 }
 
-const eliminarCotizacion = async (project) => {
-  if (!confirm(`¿Estás seguro de ELIMINAR la cotización "${project.codigo}"? Esta acción no se puede deshacer.`)) return
+const nextTransitionsFor = (status) => NEXT_TRANSITIONS[status] || []
 
+const transitionIcon = (s) => ({
+  [STATUS.SENT]:            'fa-solid fa-paper-plane',
+  [STATUS.IN_NEGOTIATION]:  'fa-solid fa-comments',
+  [STATUS.APPROVED]:        'fa-solid fa-check-double',
+  [STATUS.REJECTED]:        'fa-solid fa-ban',
+  [STATUS.DRAFT]:           'fa-solid fa-rotate-left',
+  [STATUS.EN_CURSO]:        'fa-solid fa-play'
+}[s] || 'fa-solid fa-arrow-right')
+
+const transitionClass = (s) => `trans-${statusCssClass(s)}`
+const transitionTitle = (s) => `Marcar como "${statusLabel(s)}"`
+
+async function transitionTo(project, newStatus) {
+  const confirmMsg = newStatus === STATUS.EN_CURSO
+    ? `Iniciar proyecto "${project.codigo}"? Se moverá a Proyectos en Curso.`
+    : `Cambiar estado a "${statusLabel(newStatus)}"?`
+  if (!confirm(confirmMsg)) return
+  try {
+    await changeProjectStatus(project, newStatus)
+    if (newStatus === STATUS.EN_CURSO) {
+      // moves to active projects board
+      allProjects.value = allProjects.value.filter(p => p.id !== project.id)
+      alert('Proyecto iniciado. Lo verás en "Proyectos en Curso".')
+    } else {
+      project.status = newStatus
+      // If user approved, suggest starting execution
+      if (newStatus === STATUS.APPROVED) {
+        if (confirm('Cotización aprobada. ¿Iniciar el proyecto ahora?')) {
+          await changeProjectStatus(project, STATUS.EN_CURSO)
+          allProjects.value = allProjects.value.filter(p => p.id !== project.id)
+        }
+      }
+    }
+  } catch (e) {
+    console.error('Transición fallida', e)
+    alert('No se pudo actualizar el estado.')
+  }
+}
+
+async function eliminarCotizacion(project) {
+  if (!confirm(`¿Eliminar la cotización ${project.codigo}? Esta acción no se puede deshacer.`)) return
   try {
     await deleteDoc(doc(db, 'projects', project.id))
-    projects.value = projects.value.filter(p => p.id !== project.id)
-  } catch (error) {
-    console.error('Error eliminando cotización:', error)
-    alert('Error al eliminar la cotización.')
+    allProjects.value = allProjects.value.filter(p => p.id !== project.id)
+  } catch (e) {
+    console.error(e); alert('Error al eliminar la cotización.')
   }
 }
 
-const editarCotizacion = (project) => {
-    // Redirigir a una vista de edición o al wizard con los datos cargados.
-    // Por ahora, asumiremos que existe una ruta de edición o reutilizamos el wizard.
-    // Si no existe ruta específica, alertar o redirigir al wizard (ajustar según router).
-    // router.push(`/cotizar?edit=${project.id}`)
-    // O si es "Editar Cliente" como vimos antes:
-    router.push(`/editar-cliente/${project.id}`) 
-}
+const editarCotizacion = (project) => router.push(`/cotizar/edit/${project.id}`)
 
-const aceptarCotizacion = async (project) => {
-  if (!confirm(`¿Estás seguro de aceptar la cotización ${project.codigo}? Pasará a estado "En Curso".`)) return
-
-  try {
-    const docRef = doc(db, 'projects', project.id)
-    await updateDoc(docRef, {
-      status: 'En Curso',
-      updated_at: new Date()
-    })
-    
-    // Remove from local list as it moved to active projects
-    projects.value = projects.value.filter(p => p.id !== project.id)
-    alert('Cotización aceptada y movida a Proyectos en Curso.')
-    
-  } catch (error) {
-    console.error('Error actualizando estado:', error)
-    alert('Hubo un error al actualizar el estado.')
-  }
+const formatValidity = (iso) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y.slice(2)}`
 }
-
-const formatFecha = (timestamp) => {
-  if (!timestamp || !timestamp.toDate) return '-'
-  return new Intl.DateTimeFormat('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric'
-  }).format(timestamp.toDate())
+const validityClass = (p) => {
+  if (!p.validUntil) return ''
+  const today = new Date().toISOString().slice(0, 10)
+  if (p.validUntil < today) return 'expired'
+  // dentro de 5 días → warning
+  const inFive = new Date(); inFive.setDate(inFive.getDate() + 5)
+  const fiveDaysFromNow = inFive.toISOString().slice(0, 10)
+  if (p.validUntil <= fiveDaysFromNow) return 'expiring'
+  return ''
 }
+const verDetalle = (project) => router.push(`/proyectos/${project.id}`)
+const formatFecha = (ts) => !ts?.toDate ? '-' :
+  new Intl.DateTimeFormat('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(ts.toDate())
 
-const verDetalle = (project) => {
-    router.push(`/proyectos/${project.id}`)
-}
-
-const getStatusClass = (status) => {
-    if (!status) return ''
-    return status.toLowerCase().replace(/\s+/g, '-')
-}
-// Modal Scope Logic
+// Scope modal
 const showScopeModal = ref(false)
 const selectedProjectId = ref(null)
-
-const abrirModalAlcances = (project) => {
-    selectedProjectId.value = project.id
-    showScopeModal.value = true
-}
-
-const onScopeSaved = () => {
-    // Optionally refresh project list if needed, but data is fetched on modal open
-}
+const abrirModalAlcances = (p) => { selectedProjectId.value = p.id; showScopeModal.value = true }
+const onScopeSaved = () => {}
 </script>
 
 <style scoped>
-.container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 2rem;
-}
+.container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.table-responsive {
-  width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 1rem;
-  border-radius: 12px;
-  box-shadow: var(--shadow);
-}
-
-.projects-table {
-  width: 100%;
-  border-collapse: collapse;
+.filter-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.5rem; }
+.filter-pill {
   background: var(--bg-surface);
-  /* border-radius removed here as it's on wrapper for proper scroll */
-  /* border: 1px solid var(--border-color); */
-  min-width: 800px; /* Force scroll on small screens */
-}
-
-th, td {
-  padding: 1.25rem 1rem;
-  text-align: left;
-  border-bottom: 1px solid var(--border-color);
-  color: var(--text-main);
-  transition: background-color 0.3s, color 0.3s;
-}
-
-th {
-  background-color: var(--bg-app);
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-.badge-code {
-  font-family: monospace;
-  background: var(--bg-app);
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 0.9em;
-  color: var(--text-muted);
   border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
 }
+.filter-pill:hover { color: var(--text-main); border-color: var(--primary); }
+.filter-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+.filter-count { background: rgba(255,255,255,0.25); padding: 1px 8px; border-radius: 10px; font-size: 0.75rem; }
+.filter-pill:not(.active) .filter-count { background: var(--bg-app); color: var(--text-muted); }
 
-.monto {
-  font-weight: 800;
-  color: var(--primary);
-  font-size: 1.1rem;
-}
+.table-responsive { width: 100%; overflow-x: auto; margin-bottom: 1rem; border-radius: 12px; box-shadow: var(--shadow); }
+.projects-table { width: 100%; border-collapse: collapse; background: var(--bg-surface); min-width: 880px; }
+th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+th { background: var(--bg-app); font-weight: 700; color: var(--text-muted); text-transform: uppercase; font-size: 0.78rem; letter-spacing: 0.05em; white-space: nowrap; }
+
+.badge-code { font-family: monospace; background: var(--bg-app); padding: 4px 8px; border-radius: 6px; font-size: 0.85em; color: var(--text-muted); border: 1px solid var(--border-color); }
+.monto { font-weight: 800; color: var(--primary); }
 
 .badge-status {
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.85em;
-  font-weight: 600;
-  background: var(--bg-app);
-  color: var(--text-muted);
+  padding: 4px 12px; border-radius: 12px;
+  font-size: 0.8em; font-weight: 600;
+  background: var(--bg-app); color: var(--text-muted);
   border: 1px solid var(--border-color);
-  display: inline-block;
-  white-space: nowrap;
+  display: inline-block; white-space: nowrap;
 }
+.badge-status.draft           { background: rgba(56, 189, 248, 0.15);  color: #38bdf8; border-color: rgba(56, 189, 248, 0.3); }
+.badge-status.sent            { background: rgba(251, 191, 36, 0.15);  color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+.badge-status.in-negotiation  { background: rgba(168, 85, 247, 0.15);  color: #a855f7; border-color: rgba(168, 85, 247, 0.3); }
+.badge-status.approved        { background: rgba(74, 222, 128, 0.15);  color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
+.badge-status.rejected        { background: rgba(248, 113, 113, 0.15); color: #f87171; border-color: rgba(248, 113, 113, 0.3); }
 
-.badge-status.draft { 
-    background: rgba(3, 105, 161, 0.15); 
-    color: #38bdf8; 
-    border-color: rgba(3, 105, 161, 0.3);
-}
-.badge-status.sent { 
-    background: rgba(217, 119, 6, 0.15); 
-    color: #fbbf24; 
-    border-color: rgba(217, 119, 6, 0.3);
-}
-.badge-status.approved { 
-    background: rgba(21, 128, 61, 0.15); 
-    color: #4ade80; 
-    border-color: rgba(21, 128, 61, 0.3);
-}
-.badge-status.rejected { 
-    background: rgba(153, 27, 27, 0.15); 
-    color: #f87171; 
-    border-color: rgba(153, 27, 27, 0.3);
-}
+.actions-cell { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.validity { font-size: 0.78rem; color: var(--text-muted); display: block; }
+.validity.expiring { color: #d97706; font-weight: 600; }
+.validity.expired { color: #ef4444; font-weight: 700; }
+.version-pill { background: var(--bg-app); border: 1px solid var(--border-color); color: var(--text-muted); padding: 1px 6px; border-radius: 8px; font-size: 0.7rem; font-weight: 700; margin-left: 4px; }
 
-.actions-cell {
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
+.btn-icon-danger, .btn-icon-edit, .btn-icon-view, .btn-icon-scope, .btn-transition {
+  width: 32px; height: 32px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; transition: all 0.2s;
+  background: transparent; border: 1px solid var(--border-color);
 }
+.btn-icon-danger { color: #ef4444; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); }
+.btn-icon-edit   { color: #f59e0b; border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); }
+.btn-icon-view   { color: #3b82f6; border-color: rgba(59,130,246,0.3); background: rgba(59,130,246,0.1); }
+.btn-icon-scope  { color: #8b5cf6; border-color: rgba(139,92,246,0.3); background: rgba(139,92,246,0.1); }
+.btn-icon-danger:hover, .btn-icon-edit:hover, .btn-icon-view:hover, .btn-icon-scope:hover, .btn-transition:hover { transform: scale(1.05); }
 
-/* Base icon button style */
-.btn-icon-danger, .btn-icon-edit, .btn-icon-view, .btn-icon-success, .btn-icon-scope {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-    background: transparent; /* Changed from white to transparent for dark mode compat */
-    border: 1px solid var(--border-color); /* Add border for visibility */
-}
+.btn-transition.trans-sent           { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.1); }
+.btn-transition.trans-in-negotiation { color: #a855f7; border-color: rgba(168,85,247,0.3); background: rgba(168,85,247,0.1); }
+.btn-transition.trans-approved       { color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); }
+.btn-transition.trans-rejected       { color: #ef4444; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1); }
+.btn-transition.trans-draft          { color: #64748b; border-color: rgba(100,116,139,0.3); background: rgba(100,116,139,0.1); }
+.btn-transition.trans-en-curso       { color: #22c55e; border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.1); }
 
-.btn-icon-danger {
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
-    background: rgba(239, 68, 68, 0.1);
-}
-.btn-icon-danger:hover {
-    background-color: rgba(239, 68, 68, 0.2);
-    transform: scale(1.05);
-}
+.empty-state { text-align: center; padding: 4rem 2rem; background: var(--bg-surface); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow); color: var(--text-muted); }
+.btn-crear { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 8px; margin-top: 1rem; cursor: pointer; }
 
-.btn-icon-edit {
-    color: #f59e0b;
-    border-color: rgba(245, 158, 11, 0.3);
-    background: rgba(245, 158, 11, 0.1);
-}
-.btn-icon-edit:hover {
-    background-color: rgba(245, 158, 11, 0.2);
-    transform: scale(1.05);
-}
-
-.btn-icon-view {
-    color: #3b82f6;
-    border-color: rgba(59, 130, 246, 0.3);
-    background: rgba(59, 130, 246, 0.1);
-}
-.btn-icon-view:hover {
-    background-color: rgba(59, 130, 246, 0.2);
-    transform: scale(1.05);
-}
-
-.btn-icon-success {
-    color: #10b981;
-    border-color: rgba(16, 185, 129, 0.3);
-    background: rgba(16, 185, 129, 0.1);
-}
-.btn-icon-success:hover {
-    background-color: rgba(16, 185, 129, 0.2);
-    transform: scale(1.05);
-}
-
-.btn-icon-scope {
-    color: #8b5cf6;
-    border-color: rgba(139, 92, 246, 0.3);
-    background: rgba(139, 92, 246, 0.1);
-}
-.btn-icon-scope:hover {
-    background-color: rgba(139, 92, 246, 0.2);
-    transform: scale(1.05);
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-  background: var(--bg-surface);
-  border-radius: 16px;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow);
-  color: var(--text-muted);
-}
-
-/* Responsive Table to Cards */
 @media (max-width: 768px) {
   .container { padding: 1rem; }
   .header { flex-direction: column; align-items: stretch; gap: 1rem; }
-  .btn-volver { width: 100%; }
-
-  .projects-table, .projects-table tbody, .projects-table tr, .projects-table td {
-    display: block;
-    width: 100%;
-  }
-
-  .projects-table thead {
-    display: none;
-  }
-
-  .projects-table tr {
-    margin-bottom: 1rem;
-    border-bottom: 1px solid var(--border-color);
-    padding-bottom: 1rem;
-    background: var(--bg-surface);
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  }
-  
-  .projects-table tr:last-child {
-    margin-bottom: 0;
-  }
-
-  .projects-table td {
-    padding: 0.5rem 0;
-    border-bottom: 1px solid var(--border-color);
-    text-align: right;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-
-  .projects-table td:last-child {
-    border-bottom: none;
-  }
-
-  .projects-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 0.85rem;
-    margin-right: 1rem;
-    text-align: left;
-  }
-
-  /* Specific adjustments for cells */
-  .badge-code {
-    display: inline-block;
-  }
-
-  .actions-cell {
-    justify-content: flex-end;
-    gap: 0.5rem;
-  }
+  .projects-table, .projects-table tbody, .projects-table tr, .projects-table td { display: block; width: 100%; }
+  .projects-table thead { display: none; }
+  .projects-table tr { margin-bottom: 1rem; border: 1px solid var(--border-color); background: var(--bg-surface); border-radius: 8px; padding: 1rem; }
+  .projects-table td { padding: 0.5rem 0; border-bottom: 1px solid var(--border-color); text-align: right; display: flex; justify-content: space-between; align-items: center; }
+  .projects-table td:last-child { border-bottom: none; }
+  .projects-table td::before { content: attr(data-label); font-weight: 600; color: var(--text-muted); font-size: 0.85rem; }
+  .actions-cell { justify-content: flex-end; }
 }
 </style>

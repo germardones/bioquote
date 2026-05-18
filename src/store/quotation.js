@@ -2,6 +2,17 @@
 import { defineStore } from 'pinia'
 import { useSettings } from '../composables/useSettings'
 
+// Helpers
+const isoDatePlusDays = (days) => {
+  const d = new Date()
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+const defaultPaymentPlan = () => ([
+  { id: '1', label: 'Anticipo al firmar',  percentage: 50, dueDate: '', paid: false },
+  { id: '2', label: 'Contra entrega',       percentage: 50, dueDate: '', paid: false }
+])
+
 export const useQuotationStore = defineStore('quotation', {
   state: () => ({
     // Tipo de cotización: 'parametric' | 'custom'
@@ -46,7 +57,17 @@ export const useQuotationStore = defineStore('quotation', {
     },
     // Alcance y Condiciones
     scopeOfService: '',
-    exclusions: ''
+    exclusions: '',
+
+    // ===== Fase wizard v2 =====
+    // ID del proyecto que estamos editando (null = nueva cotización)
+    editingProjectId: null,
+    // Fecha de validez (ISO YYYY-MM-DD). Default: +30 días
+    validUntil: '',
+    // Plan de pago: [{ id, label, percentage, dueDate?, paid: boolean }]
+    paymentPlan: [],
+    // Versiones anteriores guardadas (snapshot al actualizar precio)
+    versions: []
   }),
   getters: {
     // Cálculo de horas mercado
@@ -179,10 +200,58 @@ export const useQuotationStore = defineStore('quotation', {
         rut: '',
         servicioDeseado: ''
       }
-      // Strategy: Initialize empty here, and let the component (NewQuotation or StepScope) populate ONLY IF empty.
       this.scopeOfService = ''
       this.exclusions = ''
       this.selectedDiscount = null
+      this.editingProjectId = null
+      this.versions = []
+      this.paymentPlan = defaultPaymentPlan()
+      this.validUntil = isoDatePlusDays(30)
+      this.codigo = null
+    },
+
+    // Carga datos de un proyecto existente al wizard (para editar)
+    loadFromProject(project) {
+      this.editingProjectId = project.id
+      this.codigo = project.id?.substring(0, 8).toUpperCase()
+      this.type = project.specs?.type || 'parametric'
+      this.customItems = project.specs?.custom_items || []
+      this.specs = {
+        entidades: project.specs?.entity_count || 0,
+        roles: project.specs?.role_count || 0,
+        vistas: project.specs?.view_count || 0,
+        apis: project.specs?.api_count || 0,
+        complejidad: project.specs?.complexity || 1.0
+      }
+      this.cliente = {
+        nombre: project.client_name || '',
+        contacto: project.client_data?.contacto || '',
+        razonSocial: project.client_data?.razonSocial || '',
+        rut: project.client_data?.rut || '',
+        email: project.client_data?.email || '',
+        direccion: project.client_data?.direccion || '',
+        servicioDeseado: project.client_data?.servicioDeseado || ''
+      }
+      this.scopeOfService = project.specs?.scope?.included || ''
+      this.exclusions = project.specs?.scope?.excluded || ''
+      this.selectedDiscount = project.financials?.discount_applied || null
+      this.paymentPlan = (project.paymentPlan && project.paymentPlan.length > 0)
+        ? project.paymentPlan
+        : defaultPaymentPlan()
+      this.validUntil = project.validUntil || isoDatePlusDays(30)
+      this.versions = project.versions || []
+    },
+
+    // Aplica template al wizard (solo specs + scope, NO cliente)
+    applyTemplate(t) {
+      this.type = t.type || 'parametric'
+      if (t.type === 'custom') {
+        this.customItems = (t.customItems || []).map(i => ({ ...i, id: Date.now() + Math.random() }))
+      } else {
+        this.specs = { ...this.specs, ...(t.specs || {}) }
+      }
+      if (t.scope) this.scopeOfService = t.scope
+      if (t.exclusions) this.exclusions = t.exclusions
     },
     setDiscount(discount) {
       this.selectedDiscount = discount ? { ...discount } : null

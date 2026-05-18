@@ -3,6 +3,17 @@
     <h2>Especificaciones del Proyecto</h2>
     <p class="subtitle">Selecciona el método de estimación y define los detalles.</p>
 
+    <!-- Template loader -->
+    <div v-if="templatesStore.items.length > 0" class="tmpl-loader">
+      <label><i class="fa-solid fa-layer-group"></i> Cargar desde plantilla</label>
+      <select v-model="selectedTemplateId" @change="onApplyTemplate">
+        <option value="">— Empezar en blanco —</option>
+        <option v-for="t in templatesStore.items" :key="t.id" :value="t.id">
+          {{ t.name }} ({{ t.type === 'custom' ? 'custom' : 'paramétrica' }})
+        </option>
+      </select>
+    </div>
+
     <!-- TIPO DE COTIZACIÓN -->
     <div class="type-selector">
       <button 
@@ -160,23 +171,40 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuotationStore } from '../../store/quotation'
 import { useSettings } from '../../composables/useSettings'
+import { useQuoteTemplatesStore } from '../../store/quoteTemplates'
 
 const router = useRouter()
+const route = useRoute()
 const store = useQuotationStore()
 const { settings, fetchSettings } = useSettings()
+const templatesStore = useQuoteTemplatesStore()
+
+const selectedTemplateId = ref('')
+const isEditMode = computed(() => !!route.params.id)
 
 onMounted(async () => {
-    await fetchSettings()
-    // Initialize specs if needed (ensure properties exist in store)
+    await Promise.all([fetchSettings(), templatesStore.fetchAll()])
     settings.value.specs.forEach(s => {
         if (store.specs[s.id] === undefined) {
              store.specs[s.id] = 0
         }
     })
 })
+
+function onApplyTemplate() {
+  if (!selectedTemplateId.value) return
+  const t = templatesStore.items.find(x => x.id === selectedTemplateId.value)
+  if (!t) return
+  if (!confirm(`Cargar plantilla "${t.name}"? Esto sobrescribirá las especificaciones actuales.`)) {
+    selectedTemplateId.value = ''
+    return
+  }
+  store.applyTemplate(t)
+  selectedTemplateId.value = ''
+}
 
 // State local para nuevo item
 const newItem = ref({
@@ -229,7 +257,11 @@ const decrement = (field) => {
 }
 
 const irAlSiguientePaso = () => {
-  router.push({ name: 'Paso2Cliente' })
+  if (isEditMode.value) {
+    router.push({ name: 'EditPaso2', params: { id: route.params.id } })
+  } else {
+    router.push({ name: 'Paso2Cliente' })
+  }
 }
 
 const volverAtras = () => {
@@ -246,8 +278,22 @@ const volverAtras = () => {
 
 .subtitle {
   color: var(--text-muted);
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
+
+.tmpl-loader {
+  background: rgba(0, 131, 102, 0.06);
+  border: 1px dashed rgba(0, 131, 102, 0.3);
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.tmpl-loader label { color: var(--primary); font-weight: 600; font-size: 0.88rem; margin: 0; display: flex; align-items: center; gap: 6px; }
+.tmpl-loader select { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--input-bg); color: var(--text-main); }
 
 /* Selector de Tipo */
 .type-selector {

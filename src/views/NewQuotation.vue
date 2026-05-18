@@ -1,13 +1,17 @@
 <template>
   <div class="cotizacion-wrapper">
     <div class="wizard-container">
+      <div v-if="isEditMode" class="edit-banner">
+        <i class="fa-solid fa-pen-to-square"></i>
+        Editando cotización <strong>{{ projectId?.substring(0, 8).toUpperCase() }}</strong>
+      </div>
       <div class="wizard-header">
         <div
           v-for="(paso, index) in pasos"
-          :key="paso.name"
+          :key="paso.label"
           class="step"
           :class="{
-            activo: route.name === paso.name,
+            activo: pasoActual === index,
             completado: index < pasoActual
           }"
         >
@@ -24,17 +28,45 @@
 
 <script setup>
 import { useRoute } from 'vue-router'
-import { computed } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { useQuotationStore } from '../store/quotation'
+import { db } from '../firebase/firebaseConfig'
+import { doc, getDoc } from 'firebase/firestore'
 
 const route = useRoute()
+const store = useQuotationStore()
+
+const projectId = computed(() => route.params.id)
+const isEditMode = computed(() => !!projectId.value)
 
 const pasos = [
-  { name: 'Paso1Specs', label: 'Espec. Técnicas' },
-  { name: 'Paso2Cliente', label: 'Cliente' },
-  { name: 'Paso3Resumen', label: 'Finanzas' }
+  { keys: ['Paso1Specs', 'EditPaso1'],    label: 'Espec. Técnicas' },
+  { keys: ['Paso2Cliente', 'EditPaso2'],  label: 'Cliente' },
+  { keys: ['Paso3Resumen', 'EditPaso3'],  label: 'Finanzas' }
 ]
+const pasoActual = computed(() =>
+  pasos.findIndex(p => p.keys.includes(route.name))
+)
 
-const pasoActual = computed(() => pasos.findIndex(p => p.name === route.name))
+// Load project when entering edit mode (or reset for new)
+async function loadIfEdit() {
+  if (isEditMode.value) {
+    try {
+      const snap = await getDoc(doc(db, 'projects', projectId.value))
+      if (snap.exists()) {
+        store.loadFromProject({ id: snap.id, ...snap.data() })
+      }
+    } catch (e) {
+      console.error('Error loading project for edit:', e)
+    }
+  } else if (!store.editingProjectId && !store.cliente?.nombre) {
+    // Only reset when starting fresh (don't wipe an ongoing wizard between steps)
+    store.reset()
+  }
+}
+
+onMounted(loadIfEdit)
+watch(projectId, loadIfEdit)
 </script>
 
 <style scoped>
@@ -44,6 +76,20 @@ const pasoActual = computed(() => pasos.findIndex(p => p.name === route.name))
   padding: 0 1rem;
   box-sizing: border-box;
 }
+
+.edit-banner {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #d97706;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edit-banner strong { font-family: monospace; }
 
 .wizard-header {
   display: flex;

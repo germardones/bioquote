@@ -4,6 +4,7 @@ import Dashboard from '../views/Dashboard.vue'
 import NewQuotation from '../views/NewQuotation.vue'
 import { auth, db } from '../firebase/firebaseConfig'
 import { doc, getDoc } from 'firebase/firestore'
+import { sectionForPath, canAccess, ROLES } from '../constants/roles'
 
 const routes = [
   { path: '/', name: 'Login', component: Login },
@@ -27,6 +28,16 @@ const routes = [
         name: 'Paso3Resumen',
         component: () => import('../components/steps/Step5Summary.vue')
       }
+    ]
+  },
+  {
+    // Edit flow: same wizard but pre-loaded with project data
+    path: '/cotizar/edit/:id',
+    component: NewQuotation,
+    children: [
+      { path: '',         name: 'EditPaso1', component: () => import('../components/steps/Step1TechnicalSpecs.vue') },
+      { path: 'cliente',  name: 'EditPaso2', component: () => import('../components/steps/Step4ClientData.vue') },
+      { path: 'resumen',  name: 'EditPaso3', component: () => import('../components/steps/Step5Summary.vue') }
     ]
   },
   {
@@ -134,6 +145,46 @@ const routes = [
     path: '/finanzas/costos',
     name: 'FinancialCosts',
     component: () => import('../views/financial/OperationalCostsView.vue')
+  },
+  {
+    path: '/finanzas/gastos',
+    name: 'FinancialExpenses',
+    component: () => import('../views/financial/ExpensesView.vue')
+  },
+  {
+    path: '/finanzas/estado-resultados',
+    name: 'FinancialIncomeStatement',
+    component: () => import('../views/financial/IncomeStatementView.vue')
+  },
+  {
+    path: '/equipo/ausencias',
+    name: 'TeamAbsences',
+    component: () => import('../views/team/TeamAbsencesView.vue')
+  },
+  {
+    path: '/tareas',
+    name: 'Tasks',
+    component: () => import('../views/tasks/TasksView.vue')
+  },
+  {
+    path: '/reportes',
+    name: 'Reports',
+    component: () => import('../views/reports/ReportsView.vue')
+  },
+  {
+    path: '/finanzas/retiros',
+    name: 'PartnerWithdrawals',
+    component: () => import('../views/financial/WithdrawalsView.vue')
+  },
+  {
+    path: '/admin/plantillas',
+    name: 'QuoteTemplates',
+    component: () => import('../views/admin/QuoteTemplatesView.vue')
+  },
+  {
+    path: '/calculadora',
+    name: 'QuoteCalculator',
+    component: () => import('../views/QuoteCalculatorView.vue')
   }
 ]
 
@@ -141,9 +192,6 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
-
-// Routes that require admin role
-const ADMIN_ROUTES = ['/admin', '/usuarios']
 
 // Wait for Firebase to restore auth state (avoids null on page refresh)
 const authReady = new Promise(resolve => {
@@ -160,7 +208,7 @@ let cachedRole = null
 async function getUserRole(uid) {
   if (uid === cachedUid && cachedRole !== null) return cachedRole
   const snap = await getDoc(doc(db, 'usuarios', uid))
-  cachedRole = snap.exists() ? snap.data().rol : null
+  cachedRole = snap.exists() ? (snap.data().rol || ROLES.VENDEDOR) : ROLES.VENDEDOR
   cachedUid = uid
   return cachedRole
 }
@@ -170,19 +218,25 @@ auth.onAuthStateChanged(user => {
   if (!user) { cachedUid = null; cachedRole = null }
 })
 
-// Protección de rutas
+// Protección de rutas + control de acceso por rol (Fase 5.2)
 router.beforeEach(async (to, from, next) => {
   const publicRoutes = ['/']
-  await authReady  // esperar inicialización, pero no usar el valor cacheado
-  const user = auth.currentUser  // estado real en el momento de la navegación
+  await authReady
+  const user = auth.currentUser
 
-  if (!publicRoutes.includes(to.path) && !user) {
-    return next('/')
-  }
+  if (!publicRoutes.includes(to.path) && !user) return next('/')
 
-  if (user && ADMIN_ROUTES.some(r => to.path.startsWith(r))) {
+  // /dashboard, /bienvenida, /imprimir always allowed once authenticated
+  const alwaysAllowed = ['/dashboard', '/bienvenida']
+  if (alwaysAllowed.includes(to.path) || to.path.startsWith('/imprimir')) return next()
+
+  if (user) {
     const role = await getUserRole(user.uid)
-    if (role !== 'admin') return next('/dashboard')
+    const section = sectionForPath(to.path)
+    if (section && !canAccess(role, section)) {
+      console.warn(`Acceso denegado a ${to.path} para rol "${role}" (requiere sección "${section}")`)
+      return next('/dashboard')
+    }
   }
 
   next()

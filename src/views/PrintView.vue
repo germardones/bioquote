@@ -27,7 +27,7 @@
             </div>
             <div class="meta-row">
                 <span>Validez:</span>
-                <strong>30 días</strong>
+                <strong>{{ project.validUntil ? formatShortDate(project.validUntil) : '30 días' }}</strong>
             </div>
           </div>
         </header>
@@ -127,7 +127,25 @@
             </div>
           </div>
         </section>
-    
+
+        <!-- Plan de pago -->
+        <section v-if="(project.paymentPlan || []).length > 0" class="payment-plan-print">
+          <h3>FORMA DE PAGO</h3>
+          <table class="pp-table">
+            <thead>
+              <tr><th>Concepto</th><th class="text-right">Porcentaje</th><th class="text-right">Monto</th><th>Fecha estimada</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in project.paymentPlan" :key="p.id">
+                <td>{{ p.label || 'Pago' }}</td>
+                <td class="text-right">{{ p.percentage }}%</td>
+                <td class="text-right">${{ Math.round((project.financials?.quoted_price || 0) * (p.percentage || 0) / 100).toLocaleString() }}</td>
+                <td>{{ p.dueDate ? formatShortDate(p.dueDate) : '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
         <footer class="footer">
             <p>Gracias por preferir a BioBio Code.</p>
             <p class="disclaimer">Documento válido para fines informativos y comerciales. No constituye factura electrónica.</p>
@@ -191,6 +209,12 @@ import { doc, getDoc } from 'firebase/firestore'
 import DOMPurify from 'dompurify'
 
 const sanitize = (html) => DOMPurify.sanitize(html || '', { USE_PROFILES: { html: true } })
+
+const formatShortDate = (iso) => {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-')
+  return `${d}/${m}/${y}`
+}
 
 const route = useRoute()
 const router = useRouter()
